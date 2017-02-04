@@ -12,53 +12,46 @@
 
     <ListView
         android:id="@+id/chat_list_view"
-        android:paddingRight="@dimen/activity_horizontal_margin"
-        android:paddingLeft="@dimen/activity_horizontal_margin"
-        android:divider="@drawable/chat_divider"
         android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:divider="@drawable/chat_divider"
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
         android:scrollbarStyle="outsideOverlay"
         android:layout_above="@+id/bottomlayout"
-        android:layout_height="match_parent"
-        android:transcriptMode="alwaysScroll"
-        android:stackFromBottom="true"/>
+        android:stackFromBottom="true"
+        android:transcriptMode="alwaysScroll" />
 
-    <LinearLayout
-        android:id="@+id/bottomlayout"
-        android:background="@android:color/white"
-        android:orientation="vertical"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_alignParentBottom="true"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:id="@+id/bottomlayout"
+        android:layout_alignParentBottom="true">
 
-        <RelativeLayout
+        <EditText
+            android:id="@+id/chat_edit_text1"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-            <EditText
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:id="@+id/chat_edit_text1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:scrollHorizontally="false"
-                android:layout_toStartOf="@+id/enter_chat1"
-                android:hint="@string/type_your_message"
-                android:maxLines="4"
-                android:inputType="textCapSentences"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_toStartOf="@+id/enter_chat1"
+            android:hint="@string/type_your_message"
+            android:inputType="textCapSentences"
+            android:maxLines="4"
+            android:scrollHorizontally="false"
 
-                android:textSize="18sp"/>
-            <ImageView android:layout_alignParentRight="true"
-                android:layout_alignParentEnd="true"
-                android:id="@+id/enter_chat1"
-                android:layout_width="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:layout_height="wrap_content"
-                android:layout_alignBottom="@id/chat_edit_text1"
-                android:paddingLeft="13dp"
-                android:paddingStart="13dp"
-                android:paddingRight="17dp"
-                android:paddingEnd="17dp"
-                android:src="@drawable/ic_chat_send" />
+            android:textSize="18sp" />
 
-        </RelativeLayout>
-    </LinearLayout>
+        <ImageView
+            android:id="@+id/enter_chat1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@id/chat_edit_text1"
+            android:layout_alignParentEnd="true"
+            android:layout_marginBottom="8dp"
+            android:paddingEnd="17dp"
+            android:paddingStart="13dp"
+            android:src="@drawable/ic_chat_send" />
+
+    </RelativeLayout>
 </RelativeLayout>
