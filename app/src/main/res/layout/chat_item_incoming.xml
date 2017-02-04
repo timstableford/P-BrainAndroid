@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:paddingBottom="5dp"
+    android:paddingTop="5dp">
+
+    <uk.co.tstableford.p_brain.ChatLayout
+        android:layout_width="wrap_content"
+        android:id="@+id/bubble_incoming"
+        android:layout_height="wrap_content"
+        android:background="@drawable/incoming_bubble"
+        android:layout_alignParentStart="true">
+
+        <TextView
+            android:id="@+id/message_text_incoming"
+            style="@style/chat_text_message_style"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:paddingLeft="30dp"
+            android:autoLink="web"
+            android:textAlignment="viewStart" />
+    </uk.co.tstableford.p_brain.ChatLayout>
+</RelativeLayout>
