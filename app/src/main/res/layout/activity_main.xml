@@ -18,7 +18,9 @@
         android:layout_width="match_parent"
         android:scrollbarStyle="outsideOverlay"
         android:layout_above="@+id/bottomlayout"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        android:transcriptMode="alwaysScroll"
+        android:stackFromBottom="true"/>
 
     <LinearLayout
         android:id="@+id/bottomlayout"
