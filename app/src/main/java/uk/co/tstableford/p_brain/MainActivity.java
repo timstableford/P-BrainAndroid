@@ -2,16 +2,22 @@ package uk.co.tstableford.p_brain;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.github.nkzawa.emitter.Emitter;
 import com.github.nkzawa.socketio.client.IO;
@@ -21,6 +27,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
@@ -52,13 +60,39 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
+    public boolean isConnectedToServer(String url, int timeout) {
+        if (url == null) {
+            return false;
+        }
         try {
-            mSocket = IO.socket("http://hecate.home.tstableford.co.uk:4567");
+            URL myUrl = new URL(url);
+            URLConnection connection = myUrl.openConnection();
+            connection.setConnectTimeout(timeout);
+            connection.connect();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String server = prefs.getString("server_address", null);
+        if (server == null) {
+            Toast.makeText(this, "Enter server address.", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, SettingsActivity.class));
+            return;
+        }
+        if (!isConnectedToServer(server, 1000) && server.length() > 0) {
+            final ChatMessage message = new ChatMessage();
+            message.setMessageText("Failed to connect to server: " + server);
+            message.setUserType(ChatMessage.UserType.OTHER);
+            chatMessages.add(message);
+        }
+        try {
+            mSocket = IO.socket(server);
         } catch (URISyntaxException e) {
             Log.e(TAG, "Error connecting socket.io.", e);
         }
@@ -96,6 +130,20 @@ public class MainActivity extends Activity {
         });
 
         mSocket.connect();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (mSocket != null) {
+            mSocket.close();
+        }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
         chatEditText1 = (EditText) findViewById(R.id.chat_edit_text1);
         enterChatView1 = (ImageView) findViewById(R.id.enter_chat1);
@@ -158,4 +206,21 @@ public class MainActivity extends Activity {
             }
         }
     };
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.settings_item:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.settings_menu, menu);
+        return true;
+    }
 }

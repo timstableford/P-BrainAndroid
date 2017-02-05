@@ -8,7 +8,6 @@
 
     <uk.co.tstableford.p_brain.ChatLayout
         android:layout_width="wrap_content"
-        android:id="@+id/bubble_outgoing"
         android:layout_alignParentEnd="true"
         android:layout_height="wrap_content"
         android:background="@drawable/outgoing_bubble">
