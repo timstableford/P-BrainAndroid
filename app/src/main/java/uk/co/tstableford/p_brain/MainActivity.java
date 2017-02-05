@@ -1,6 +1,8 @@
 package uk.co.tstableford.p_brain;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -71,6 +73,11 @@ public class MainActivity extends Activity {
                         try {
                             JSONObject msgObject = data.getJSONObject("msg");
                             String response = msgObject.getString("text");
+
+                            if(msgObject.has("url")) {
+                                String url = msgObject.getString("url");
+                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                            }
 
                             final ChatMessage message = new ChatMessage();
                             message.setMessageText(response);
