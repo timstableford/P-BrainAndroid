@@ -60,21 +60,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    public boolean isConnectedToServer(String url, int timeout) {
-        if (url == null) {
-            return false;
-        }
-        try {
-            URL myUrl = new URL(url);
-            URLConnection connection = myUrl.openConnection();
-            connection.setConnectTimeout(timeout);
-            connection.connect();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -85,12 +70,7 @@ public class MainActivity extends Activity {
             startActivity(new Intent(this, SettingsActivity.class));
             return;
         }
-        if (!isConnectedToServer(server, 1000) && server.length() > 0) {
-            final ChatMessage message = new ChatMessage();
-            message.setMessageText("Failed to connect to server: " + server);
-            message.setUserType(ChatMessage.UserType.OTHER);
-            chatMessages.add(message);
-        }
+
         try {
             mSocket = IO.socket(server);
         } catch (URISyntaxException e) {
@@ -135,8 +115,15 @@ public class MainActivity extends Activity {
     @Override
     public void onPause() {
         super.onPause();
+        final ChatMessage message = new ChatMessage();
+        message.setMessageText("Disconnecting...");
+        message.setUserType(ChatMessage.UserType.OTHER);
+        chatMessages.add(message);
         if (mSocket != null) {
+            mSocket.disconnect();
             mSocket.close();
+            mSocket.off();
+            mSocket = null;
         }
     }
 
