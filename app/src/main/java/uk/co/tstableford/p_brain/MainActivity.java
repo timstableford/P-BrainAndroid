@@ -18,6 +18,11 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
+import android.speech.tts.TextToSpeech;
+import android.os.Build;
+import android.speech.RecognizerIntent;
+import android.content.ActivityNotFoundException;
+import android.annotation.TargetApi;
 
 import com.github.nkzawa.emitter.Emitter;
 import com.github.nkzawa.socketio.client.IO;
@@ -29,15 +34,18 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final String TAG = "PBrainMain";
+    private static final int REQ_CODE_SPEECH_INPUT = 100;
     private EditText chatEditText1;
     private ArrayList<ChatMessage> chatMessages;
     private ImageView enterChatView1;
     private ChatListAdapter listAdapter;
     private Socket mSocket;
     private HotwordDetector hotwordDetector;
+    private TextToSpeech tts;
 
     private void sendMessage(final String messageText, final ChatMessage.UserType userType) {
         if (messageText.trim().length() == 0) {
@@ -83,7 +91,7 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String server = prefs.getString("server_address", null);
+        final String server = prefs.getString("server_address", null);
         if (server == null) {
             Toast.makeText(this, "Enter server address.", Toast.LENGTH_SHORT).show();
             startActivity(new Intent(this, SettingsActivity.class));
@@ -111,6 +119,9 @@ public class MainActivity extends Activity {
                                 String url = msgObject.getString("url");
                                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                             }
+                            if (!msgObject.has("silent")) {
+                                speak(response);
+                            }
 
                             final ChatMessage message = new ChatMessage();
                             message.setMessageText(response);
@@ -127,6 +138,30 @@ public class MainActivity extends Activity {
                 });
             }
         });
+        
+        mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
+            @Override
+            public void call(final Object... args) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        localMessage("Connected to: " + server);
+                    }
+                });
+            }
+        });
+        
+        mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
+            @Override
+            public void call(final Object... args) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        localMessage("Disconnected from host.");
+                    }
+                });
+            }
+        });
 
         mSocket.connect();
         if (hotwordDetector != null) {
@@ -137,7 +172,6 @@ public class MainActivity extends Activity {
     @Override
     public void onPause() {
         super.onPause();
-        localMessage("Disconnecting...");
         if (mSocket != null) {
             mSocket.disconnect();
             mSocket.close();
@@ -184,6 +218,39 @@ public class MainActivity extends Activity {
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialise hotword detector.", e);
         }
+        
+        tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    int result = tts.setLanguage(Locale.US);
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e("TTS", "This Language is not supported");
+                    }
+                } else {
+                    Log.e("TTS", "Initilization Failed!");
+                }
+            }
+        });
+    }
+    
+    private void speak(String text){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            speakLollipop(text);
+        } else {
+            speakKitkat(text);
+        }
+    }
+    
+    @SuppressWarnings("deprecation")
+    @TargetApi(Build.VERSION_CODES.KITKAT)
+    private void speakKitkat(String text) {
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+    }
+    
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void speakLollipop(String text) {
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);    
     }
 
     private EditText.OnKeyListener keyListener = new View.OnKeyListener() {
@@ -248,5 +315,46 @@ public class MainActivity extends Activity {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.settings_menu, menu);
         return true;
+    }
+
+    /**
+     * Showing google speech input dialog
+     * */
+    private void promptSpeechInput() {
+        hotwordDetector.stopListening();
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                getString(R.string.speech_prompt));
+        try {
+            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(),
+                    getString(R.string.speech_not_supported),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Receiving speech input
+     * */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case REQ_CODE_SPEECH_INPUT: {
+                if (resultCode == RESULT_OK && null != data) {
+                    ArrayList<String> result = data
+                            .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                    localMessage(result.get(0));
+                }
+                break;
+            }
+
+        }
+        hotwordDetector.startListening();
     }
 }

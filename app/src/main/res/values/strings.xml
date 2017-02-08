@@ -6,4 +6,6 @@
     <string name="settings">Settings</string>
     <string name="pref_title_display_name">Server Address</string>
     <string name="pref_default_display_name">http://x.x.x.x:4567</string>
+    <string name="speech_prompt">Yes?</string>
+    <string name="speech_not_supported">Sorry! Your device doesn\'t support speech input.</string>
 </resources>
