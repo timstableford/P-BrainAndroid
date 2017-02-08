@@ -3,9 +3,13 @@ package uk.co.tstableford.p_brain;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -40,6 +44,7 @@ public class MainActivity extends Activity {
     private static final String TAG = "PBrainMain";
     private static final int REQ_CODE_SPEECH_INPUT = 100;
     private static final int REQ_CREATE_TRAINING_DATA = 101;
+    public static final int PERMISSION_RESULT = 102;
     private EditText chatEditText1;
     private ArrayList<ChatMessage> chatMessages;
     private ImageView enterChatView1;
@@ -120,6 +125,17 @@ public class MainActivity extends Activity {
     @Override
     public void onResume() {
         super.onResume();
+
+        try {
+            if (!requestPermissions()) {
+                Log.e(TAG, "Not got all permissions.");
+                return;
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Failed to find this package.", e);
+            return;
+        }
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         final String server = prefs.getString("server_address", null);
         if (server == null) {
@@ -429,5 +445,41 @@ public class MainActivity extends Activity {
                 });
             }
         });
+    }
+
+    public boolean requestPermissions() throws PackageManager.NameNotFoundException {
+        PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_PERMISSIONS);
+        ArrayList<String> toRequest = new ArrayList<>();
+        if (info.requestedPermissions != null) {
+            for (String p : info.requestedPermissions) {
+                if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                    toRequest.add(p);
+                }
+            }
+        }
+
+        if (toRequest.size() > 0) {
+            String[] tra = new String[toRequest.size()];
+            for (int i = 0; i < tra.length; i++) {
+                tra[i] = toRequest.get(i);
+            }
+            ActivityCompat.requestPermissions(this, tra, PERMISSION_RESULT);
+        }
+        return toRequest.size() == 0;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        for (int result: grantResults) {
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                try {
+                    requestPermissions();
+                    return;
+                } catch (PackageManager.NameNotFoundException e) {
+                    Log.e(TAG, "Package not found.", e);
+                }
+            }
+        }
     }
 }
