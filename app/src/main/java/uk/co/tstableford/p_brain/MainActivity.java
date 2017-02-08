@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
         }
         JSONObject object = new JSONObject();
         if (mSocket == null) {
-            localMessage("Error: not connected to server.");
+            localMessage(getString(R.string.server_not_connected));
         } else {
             try {
                 object.put("text", messageText);
@@ -74,10 +74,25 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void responseMessage(String text, boolean silent) {
+        final ChatMessage message = new ChatMessage();
+        message.setMessageText(text);
+        message.setUserType(ChatMessage.UserType.OTHER);
+        chatMessages.add(message);
+
+        if (listAdapter != null) {
+            listAdapter.notifyDataSetChanged();
+        }
+
+        if (!silent) {
+            speak(text);
+        }
+    }
+
     private void localMessage(final String messageText) {
         final ChatMessage message = new ChatMessage();
         message.setMessageText(messageText);
-        message.setUserType(ChatMessage.UserType.OTHER);
+        message.setUserType(ChatMessage.UserType.STATUS);
         chatMessages.add(message);
 
         if (listAdapter != null) {
@@ -119,7 +134,7 @@ public class MainActivity extends Activity {
                 setupSocketListeners();
             } catch (URISyntaxException e) {
                 Log.e(TAG, "Error connecting socket.io.", e);
-                localMessage("Error setting up socket.io.");
+                localMessage(getString(R.string.server_not_connected));
             }
         }
 
@@ -166,8 +181,7 @@ public class MainActivity extends Activity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            speak("Yes?");
-                            localMessage("Yes?");
+                            responseMessage("Yes?", false);
                             promptSpeechInput();
                         }
                     });
@@ -193,6 +207,7 @@ public class MainActivity extends Activity {
     }
     
     private void speak(String text){
+        // Stop listening so it doesn't trigger itself.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             speakLollipop(text);
         } else {
@@ -316,20 +331,20 @@ public class MainActivity extends Activity {
                             .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                     sendMessage(result.get(0), ChatMessage.UserType.SELF);
                 }
+                hotwordDetector.startListening();
                 break;
             }
             case REQ_CREATE_TRAINING_DATA: {
                 if (resultCode == RESULT_OK) {
                     if (hotwordDetector.setKeyword(name)) {
-                        localMessage("Successfully updated keyword to " + name);
+                        localMessage(getString(R.string.keyword_update_success, name));
                     } else {
-                        localMessage("Error updating keyword to " + name);
+                        localMessage(getString(R.string.keyword_update_failure, name));
                     }
                 }
             }
 
         }
-        hotwordDetector.startListening();
     }
 
     private void setupSocketListeners() {
@@ -348,22 +363,14 @@ public class MainActivity extends Activity {
                                 String url = msgObject.getString("url");
                                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                             }
+
+                            boolean silent = false;
                             if (msgObject.has("silent")) {
-                                if (!msgObject.getBoolean("silent")) {
-                                    speak(response);
+                                if (msgObject.getBoolean("silent")) {
+                                    silent = true;
                                 }
-                            } else {
-                                speak(response);
                             }
-
-                            final ChatMessage message = new ChatMessage();
-                            message.setMessageText(response);
-                            message.setUserType(ChatMessage.UserType.OTHER);
-                            chatMessages.add(message);
-
-                            if (listAdapter != null) {
-                                listAdapter.notifyDataSetChanged();
-                            }
+                            responseMessage(response, silent);
                         } catch (JSONException e) {
                             Log.e(TAG, "Error decoding JSON packet.", e);
                         }
@@ -385,7 +392,7 @@ public class MainActivity extends Activity {
                                 if (hotwordDetector.setKeyword(name)) {
                                     Log.i(TAG, "Keyword set to " + name);
                                 } else {
-                                    Toast.makeText(MainActivity.this, "Training data missing for " + name, Toast.LENGTH_LONG).show();
+                                    Toast.makeText(MainActivity.this, getString(R.string.missing_training_data, name), Toast.LENGTH_LONG).show();
                                     Intent intent = new Intent(MainActivity.this, TrainActivity.class);
                                     intent.putExtra(TrainActivity.NAME_INTENT, name);
                                     startActivityForResult(intent, REQ_CREATE_TRAINING_DATA);
@@ -405,7 +412,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        localMessage("Connected to server.");
+                        localMessage(getString(R.string.connected));
                     }
                 });
             }
@@ -417,7 +424,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        localMessage("Disconnected from host.");
+                        localMessage(getString(R.string.disconnected));
                     }
                 });
             }

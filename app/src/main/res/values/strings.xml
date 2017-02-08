@@ -15,4 +15,10 @@
     <string name="train">Train</string>
     <string name="train_voice">Train Hotword</string>
     <string name="reset">Reset</string>
+    <string name="server_not_connected">Error connecting to server</string>
+    <string name="keyword_update_success">Successfully updated keyword to \'%s\'</string>
+    <string name="keyword_update_failure">Failure updating keyword to \'%s\'</string>
+    <string name="disconnected">Disconnected from host</string>
+    <string name="connected">Connected to server</string>
+    <string name="missing_training_data">Training data missing for %s</string>
 </resources>

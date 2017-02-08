@@ -2,7 +2,7 @@ package uk.co.tstableford.p_brain;
 
 public class ChatMessage {
     public enum UserType {
-        OTHER, SELF
+        OTHER, SELF, STATUS
     };
     private String messageText;
     private UserType userType;

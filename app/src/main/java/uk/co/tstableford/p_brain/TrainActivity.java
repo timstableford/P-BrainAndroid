@@ -181,6 +181,9 @@ public class TrainActivity extends Activity {
     private void updateButtons() {
         train.setEnabled(false);
         reset.setEnabled(false);
+        train1.setEnabled(true);
+        train2.setEnabled(true);
+        train3.setEnabled(true);
         if (samples.size() > 0) {
             train1.setEnabled(false);
             reset.setEnabled(true);

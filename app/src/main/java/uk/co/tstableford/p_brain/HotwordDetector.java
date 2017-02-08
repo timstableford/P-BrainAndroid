@@ -116,16 +116,18 @@ public class HotwordDetector {
     }
 
     public void startListening() {
-        recorder.startRecording();
-        isListening = true;
-        if (!isRecording) {
-            isRecording = true;
-            recordingThread = new Thread(new Runnable() {
-                public void run() {
-                    detectHotword();
-                }
-            }, "AudioRecorder Thread");
-            recordingThread.start();
+        if (!isListening) {
+            recorder.startRecording();
+            isListening = true;
+            if (!isRecording) {
+                isRecording = true;
+                recordingThread = new Thread(new Runnable() {
+                    public void run() {
+                        detectHotword();
+                    }
+                }, "AudioRecorder Thread");
+                recordingThread.start();
+            }
         }
     }
 

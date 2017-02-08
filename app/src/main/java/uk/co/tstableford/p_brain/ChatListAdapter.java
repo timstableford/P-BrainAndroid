@@ -10,6 +10,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 
 public class ChatListAdapter extends BaseAdapter {
+    private static final int NUM_TYPES = 3;
     private ArrayList<ChatMessage> chatMessages;
     private Context context;
 
@@ -37,31 +38,41 @@ public class ChatListAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
         View v = null;
         ChatMessage message = chatMessages.get(position);
-        ViewHolder holder1;
-        ViewHolder holder2;
+        ViewHolder holder;
 
         if (message.getUserType() == ChatMessage.UserType.SELF) {
             if (convertView == null) {
                 v = LayoutInflater.from(context).inflate(R.layout.chat_item_outgoing, null, false);
-                holder1 = new ViewHolder();
-                holder1.messageTextView = (TextView) v.findViewById(R.id.message_text_outgoing);
-                v.setTag(holder1);
+                holder = new ViewHolder();
+                holder.messageTextView = (TextView) v.findViewById(R.id.message_text_outgoing);
+                v.setTag(holder);
             } else {
                 v = convertView;
-                holder1 = (ViewHolder) v.getTag();
+                holder = (ViewHolder) v.getTag();
             }
-            holder1.messageTextView.setText(message.getMessageText());
+            holder.messageTextView.setText(message.getMessageText());
         } else if (message.getUserType() == ChatMessage.UserType.OTHER) {
             if (convertView == null) {
                 v = LayoutInflater.from(context).inflate(R.layout.chat_item_incoming, null, false);
-                holder2 = new ViewHolder();
-                holder2.messageTextView = (TextView) v.findViewById(R.id.message_text_incoming);
-                v.setTag(holder2);
+                holder = new ViewHolder();
+                holder.messageTextView = (TextView) v.findViewById(R.id.message_text_incoming);
+                v.setTag(holder);
             } else {
                 v = convertView;
-                holder2 = (ViewHolder) v.getTag();
+                holder = (ViewHolder) v.getTag();
             }
-            holder2.messageTextView.setText(message.getMessageText());
+            holder.messageTextView.setText(message.getMessageText());
+        } else if (message.getUserType() == ChatMessage.UserType.STATUS) {
+            if (convertView == null) {
+                v = LayoutInflater.from(context).inflate(R.layout.chat_item_status, null, false);
+                holder = new ViewHolder();
+                holder.messageTextView = (TextView) v.findViewById(R.id.message_text_status);
+                v.setTag(holder);
+            } else {
+                v = convertView;
+                holder = (ViewHolder) v.getTag();
+            }
+            holder.messageTextView.setText(message.getMessageText());
         }
 
         return v;
@@ -69,7 +80,7 @@ public class ChatListAdapter extends BaseAdapter {
 
     @Override
     public int getViewTypeCount() {
-        return 2;
+        return NUM_TYPES;
     }
 
     @Override
