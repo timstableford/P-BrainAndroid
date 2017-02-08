@@ -26,9 +26,8 @@ import com.github.nkzawa.socketio.client.Socket;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
@@ -38,9 +37,10 @@ public class MainActivity extends Activity {
     private ImageView enterChatView1;
     private ChatListAdapter listAdapter;
     private Socket mSocket;
+    private HotwordDetector hotwordDetector;
 
     private void sendMessage(final String messageText, final ChatMessage.UserType userType) {
-        if(messageText.trim().length() == 0) {
+        if (messageText.trim().length() == 0) {
             return;
         }
         final ChatMessage message = new ChatMessage();
@@ -57,6 +57,25 @@ public class MainActivity extends Activity {
             mSocket.emit("ask", object);
         } catch (JSONException e) {
             Log.e(TAG, "Failed to add message to JSON.", e);
+        }
+    }
+
+    private void localMessage(final String messageText) {
+        final ChatMessage message = new ChatMessage();
+        message.setMessageText(messageText);
+        message.setUserType(ChatMessage.UserType.OTHER);
+        chatMessages.add(message);
+
+        if (listAdapter != null) {
+            listAdapter.notifyDataSetChanged();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (hotwordDetector != null) {
+            hotwordDetector.destroy();
         }
     }
 
@@ -88,7 +107,7 @@ public class MainActivity extends Activity {
                             JSONObject msgObject = data.getJSONObject("msg");
                             String response = msgObject.getString("text");
 
-                            if(msgObject.has("url")) {
+                            if (msgObject.has("url")) {
                                 String url = msgObject.getString("url");
                                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                             }
@@ -110,20 +129,23 @@ public class MainActivity extends Activity {
         });
 
         mSocket.connect();
+        if (hotwordDetector != null) {
+            hotwordDetector.startListening();
+        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        final ChatMessage message = new ChatMessage();
-        message.setMessageText("Disconnecting...");
-        message.setUserType(ChatMessage.UserType.OTHER);
-        chatMessages.add(message);
+        localMessage("Disconnecting...");
         if (mSocket != null) {
             mSocket.disconnect();
             mSocket.close();
             mSocket.off();
             mSocket = null;
+        }
+        if (hotwordDetector != null) {
+            hotwordDetector.stopListening();
         }
     }
 
@@ -145,6 +167,23 @@ public class MainActivity extends Activity {
         enterChatView1.setOnClickListener(clickListener);
 
         chatEditText1.addTextChangedListener(watcher1);
+
+        try {
+            hotwordDetector = new HotwordDetector(this);
+            hotwordDetector.setHotwordListener(new HotwordListener() {
+                @Override
+                public void onHotword() {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            localMessage("Yes?");
+                        }
+                    });
+                }
+            });
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to initialise hotword detector.", e);
+        }
     }
 
     private EditText.OnKeyListener keyListener = new View.OnKeyListener() {
@@ -155,7 +194,7 @@ public class MainActivity extends Activity {
                     (keyCode == KeyEvent.KEYCODE_ENTER)) {
                 // Perform action on key press
                 EditText editText = (EditText) v;
-                if(v == chatEditText1) {
+                if (v == chatEditText1) {
                     sendMessage(editText.getText().toString(), ChatMessage.UserType.SELF);
                 }
                 chatEditText1.setText("");
@@ -168,7 +207,7 @@ public class MainActivity extends Activity {
     private ImageView.OnClickListener clickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            if(v == enterChatView1) {
+            if (v == enterChatView1) {
                 sendMessage(chatEditText1.getText().toString(), ChatMessage.UserType.SELF);
             }
             chatEditText1.setText("");
@@ -186,9 +225,9 @@ public class MainActivity extends Activity {
 
         @Override
         public void afterTextChanged(Editable editable) {
-            if(editable.length() == 0){
+            if (editable.length() == 0) {
                 enterChatView1.setImageResource(R.drawable.ic_chat_send);
-            }else{
+            } else {
                 enterChatView1.setImageResource(R.drawable.ic_chat_send_active);
             }
         }
