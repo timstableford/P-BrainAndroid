@@ -32,9 +32,10 @@ public class HotwordDetector {
     private Thread recordingThread = null;
     private boolean isRecording = false;
     private HotwordListener hotwordListener = null;
+    private String currentKeyword = null;
+    private boolean isListening = false;
 
     public static void copy(InputStream in, OutputStream out) throws IOException {
-
         // Transfer bytes from in to out
         byte[] buf = new byte[1024];
         int len;
@@ -43,6 +44,40 @@ public class HotwordDetector {
         }
         in.close();
         out.close();
+    }
+
+    public static boolean isKeywordTrained(String keyword) {
+        keyword = keyword.replaceAll(" ", "_").toLowerCase();
+        File path = new File(Environment.getExternalStorageDirectory().getPath(), "pbrain");
+        return new File(path, keyword + ".pmdl").exists();
+    }
+
+    public boolean setKeyword(String keyword) {
+        keyword = keyword.replaceAll(" ", "_").toLowerCase();
+        if (keyword.equals(currentKeyword)) {
+            return true;
+        }
+        if (!isKeywordTrained(keyword)) {
+            return false;
+        }
+        File path = new File(Environment.getExternalStorageDirectory().getPath(), "pbrain");
+        boolean wasListening = isListening;
+        if (isListening) {
+            stopListening();
+        }
+
+        File common = new File(path, "common.res");
+        File hotword = new File(path, keyword + ".pmdl");
+        detector = new SnowboyDetect(common.getPath(), hotword.getPath());
+        detector.SetSensitivity("0.5");
+        detector.SetAudioGain(1);
+
+        if (wasListening) {
+            startListening();
+        }
+        currentKeyword = keyword;
+
+        return true;
     }
 
     public HotwordDetector(Context context) throws IOException {
@@ -61,12 +96,13 @@ public class HotwordDetector {
             copy(databaseInputStream, outputStream);
         }
 
-        File hotword = new File(path, "hotword.umdl");
+        File hotword = new File(path, "brain.pmdl");
         {
             InputStream databaseInputStream = context.getResources().openRawResource(R.raw.brain);
             FileOutputStream outputStream = new FileOutputStream(hotword);
             copy(databaseInputStream, outputStream);
         }
+        currentKeyword = "brain";
 
         // Sets up Snowboy.
         detector = new SnowboyDetect(common.getPath(), hotword.getPath());
@@ -81,6 +117,7 @@ public class HotwordDetector {
 
     public void startListening() {
         recorder.startRecording();
+        isListening = true;
         if (!isRecording) {
             isRecording = true;
             recordingThread = new Thread(new Runnable() {
@@ -97,6 +134,7 @@ public class HotwordDetector {
         if (null != recorder) {
             recorder.stop();
         }
+        isListening = false;
     }
 
     public void destroy() {

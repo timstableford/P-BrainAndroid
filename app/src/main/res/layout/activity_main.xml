@@ -7,7 +7,7 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="uk.co.tstableford.p_brain.MainActivity">
+    tools:activity="uk.co.tstableford.p_brain.MainActivity">
 
     <ListView
         android:id="@+id/chat_list_view"

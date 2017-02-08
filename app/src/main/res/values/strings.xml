@@ -8,4 +8,11 @@
     <string name="pref_default_display_name">http://x.x.x.x:4567</string>
     <string name="speech_prompt">Yes?</string>
     <string name="speech_not_supported">Sorry! Your device doesn\'t support speech input.</string>
+    <string name="record_instructions">One at a time say \'%s\' while holding each button</string>
+    <string name="record_sample1">Hold To Record Sample 1</string>
+    <string name="record_sample2">Hold To Record Sample 2</string>
+    <string name="record_sample3">Hold To Record Sample 3</string>
+    <string name="train">Train</string>
+    <string name="train_voice">Train Hotword</string>
+    <string name="reset">Reset</string>
 </resources>

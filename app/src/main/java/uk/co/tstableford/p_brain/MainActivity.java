@@ -39,6 +39,7 @@ import java.util.Locale;
 public class MainActivity extends Activity {
     private static final String TAG = "PBrainMain";
     private static final int REQ_CODE_SPEECH_INPUT = 100;
+    private static final int REQ_CREATE_TRAINING_DATA = 101;
     private EditText chatEditText1;
     private ArrayList<ChatMessage> chatMessages;
     private ImageView enterChatView1;
@@ -46,6 +47,7 @@ public class MainActivity extends Activity {
     private Socket mSocket;
     private HotwordDetector hotwordDetector;
     private TextToSpeech tts;
+    private String name;
 
     private void sendMessage(final String messageText, final ChatMessage.UserType userType) {
         if (messageText.trim().length() == 0) {
@@ -259,10 +261,17 @@ public class MainActivity extends Activity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.settings_item:
+            case R.id.settings_item: {
                 Intent intent = new Intent(this, SettingsActivity.class);
                 startActivity(intent);
                 return true;
+            }
+            case R.id.train_item: {
+                Intent intent = new Intent(this, TrainActivity.class);
+                intent.putExtra(TrainActivity.NAME_INTENT, name);
+                startActivityForResult(intent, REQ_CREATE_TRAINING_DATA);
+                return true;
+            }
         }
         return super.onOptionsItemSelected(item);
     }
@@ -309,6 +318,15 @@ public class MainActivity extends Activity {
                 }
                 break;
             }
+            case REQ_CREATE_TRAINING_DATA: {
+                if (resultCode == RESULT_OK) {
+                    if (hotwordDetector.setKeyword(name)) {
+                        localMessage("Successfully updated keyword to " + name);
+                    } else {
+                        localMessage("Error updating keyword to " + name);
+                    }
+                }
+            }
 
         }
         hotwordDetector.startListening();
@@ -345,6 +363,33 @@ public class MainActivity extends Activity {
 
                             if (listAdapter != null) {
                                 listAdapter.notifyDataSetChanged();
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error decoding JSON packet.", e);
+                        }
+                    }
+                });
+            }
+        });
+
+        mSocket.on("set_name", new Emitter.Listener() {
+            @Override
+            public void call(final Object... args) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        JSONObject data = (JSONObject) args[0];
+                        try {
+                            name = data.getString("name");
+                            if (hotwordDetector != null) {
+                                if (hotwordDetector.setKeyword(name)) {
+                                    Log.i(TAG, "Keyword set to " + name);
+                                } else {
+                                    Toast.makeText(MainActivity.this, "Training data missing for " + name, Toast.LENGTH_LONG).show();
+                                    Intent intent = new Intent(MainActivity.this, TrainActivity.class);
+                                    intent.putExtra(TrainActivity.NAME_INTENT, name);
+                                    startActivityForResult(intent, REQ_CREATE_TRAINING_DATA);
+                                }
                             }
                         } catch (JSONException e) {
                             Log.e(TAG, "Error decoding JSON packet.", e);

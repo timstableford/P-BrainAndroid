@@ -1,4 +1,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@+id/settings_item"
         android:title="@string/settings" />
+    <item android:id="@+id/train_item"
+        android:title="@string/train_voice" />
 </menu>
