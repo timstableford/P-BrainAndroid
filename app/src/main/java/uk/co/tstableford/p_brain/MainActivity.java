@@ -60,11 +60,15 @@ public class MainActivity extends Activity {
             listAdapter.notifyDataSetChanged();
         }
         JSONObject object = new JSONObject();
-        try {
-            object.put("text", messageText);
-            mSocket.emit("ask", object);
-        } catch (JSONException e) {
-            Log.e(TAG, "Failed to add message to JSON.", e);
+        if (mSocket == null) {
+            localMessage("Error: not connected to server.");
+        } else {
+            try {
+                object.put("text", messageText);
+                mSocket.emit("ask", object);
+            } catch (JSONException e) {
+                Log.e(TAG, "Failed to add message to JSON.", e);
+            }
         }
     }
 
@@ -85,6 +89,15 @@ public class MainActivity extends Activity {
         if (hotwordDetector != null) {
             hotwordDetector.destroy();
         }
+        if (mSocket != null) {
+            mSocket.disconnect();
+            mSocket.close();
+            mSocket.off();
+            mSocket = null;
+        }
+        if (tts != null) {
+            tts.stop();
+        }
     }
 
     @Override
@@ -98,72 +111,19 @@ public class MainActivity extends Activity {
             return;
         }
 
-        try {
-            mSocket = IO.socket(server);
-        } catch (URISyntaxException e) {
-            Log.e(TAG, "Error connecting socket.io.", e);
+        if (mSocket == null) {
+            try {
+                mSocket = IO.socket(server);
+                setupSocketListeners();
+            } catch (URISyntaxException e) {
+                Log.e(TAG, "Error connecting socket.io.", e);
+                localMessage("Error setting up socket.io.");
+            }
         }
 
-        mSocket.on("response", new Emitter.Listener() {
-            @Override
-            public void call(final Object... args) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        JSONObject data = (JSONObject) args[0];
-                        try {
-                            JSONObject msgObject = data.getJSONObject("msg");
-                            String response = msgObject.getString("text");
-
-                            if (msgObject.has("url")) {
-                                String url = msgObject.getString("url");
-                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                            }
-                            if (!msgObject.has("silent")) {
-                                speak(response);
-                            }
-
-                            final ChatMessage message = new ChatMessage();
-                            message.setMessageText(response);
-                            message.setUserType(ChatMessage.UserType.OTHER);
-                            chatMessages.add(message);
-
-                            if (listAdapter != null) {
-                                listAdapter.notifyDataSetChanged();
-                            }
-                        } catch (JSONException e) {
-                            Log.e(TAG, "Error decoding JSON packet.", e);
-                        }
-                    }
-                });
-            }
-        });
-        
-        mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
-            @Override
-            public void call(final Object... args) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        localMessage("Connected to: " + server);
-                    }
-                });
-            }
-        });
-        
-        mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
-            @Override
-            public void call(final Object... args) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        localMessage("Disconnected from host.");
-                    }
-                });
-            }
-        });
-
-        mSocket.connect();
+        if (mSocket != null) {
+            mSocket.connect();
+        }
         if (hotwordDetector != null) {
             hotwordDetector.startListening();
         }
@@ -172,12 +132,6 @@ public class MainActivity extends Activity {
     @Override
     public void onPause() {
         super.onPause();
-        if (mSocket != null) {
-            mSocket.disconnect();
-            mSocket.close();
-            mSocket.off();
-            mSocket = null;
-        }
         if (hotwordDetector != null) {
             hotwordDetector.stopListening();
         }
@@ -210,7 +164,9 @@ public class MainActivity extends Activity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            speak("Yes?");
                             localMessage("Yes?");
+                            promptSpeechInput();
                         }
                     });
                 }
@@ -349,12 +305,77 @@ public class MainActivity extends Activity {
                 if (resultCode == RESULT_OK && null != data) {
                     ArrayList<String> result = data
                             .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-                    localMessage(result.get(0));
+                    sendMessage(result.get(0), ChatMessage.UserType.SELF);
                 }
                 break;
             }
 
         }
         hotwordDetector.startListening();
+    }
+
+    private void setupSocketListeners() {
+        mSocket.on("response", new Emitter.Listener() {
+            @Override
+            public void call(final Object... args) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        JSONObject data = (JSONObject) args[0];
+                        try {
+                            JSONObject msgObject = data.getJSONObject("msg");
+                            String response = msgObject.getString("text");
+
+                            if (msgObject.has("url")) {
+                                String url = msgObject.getString("url");
+                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                            }
+                            if (msgObject.has("silent")) {
+                                if (!msgObject.getBoolean("silent")) {
+                                    speak(response);
+                                }
+                            } else {
+                                speak(response);
+                            }
+
+                            final ChatMessage message = new ChatMessage();
+                            message.setMessageText(response);
+                            message.setUserType(ChatMessage.UserType.OTHER);
+                            chatMessages.add(message);
+
+                            if (listAdapter != null) {
+                                listAdapter.notifyDataSetChanged();
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error decoding JSON packet.", e);
+                        }
+                    }
+                });
+            }
+        });
+
+        mSocket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
+            @Override
+            public void call(final Object... args) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        localMessage("Connected to server.");
+                    }
+                });
+            }
+        });
+
+        mSocket.on(Socket.EVENT_DISCONNECT, new Emitter.Listener() {
+            @Override
+            public void call(final Object... args) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        localMessage("Disconnected from host.");
+                    }
+                });
+            }
+        });
     }
 }

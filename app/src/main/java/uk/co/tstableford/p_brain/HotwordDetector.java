@@ -55,17 +55,15 @@ public class HotwordDetector {
         Log.i(TAG, "Getting models from: " + path);
 
         File common = new File(path, "common.res");
-        if (!common.exists()) {
-            Log.d(TAG, "common.res not found, restoring.");
+        {
             InputStream databaseInputStream = context.getResources().openRawResource(R.raw.common);
             FileOutputStream outputStream = new FileOutputStream(common);
             copy(databaseInputStream, outputStream);
         }
 
         File hotword = new File(path, "hotword.umdl");
-        if (!hotword.exists()) {
-            Log.d(TAG, "hotword.umdl not found, using default alexa.");
-            InputStream databaseInputStream = context.getResources().openRawResource(R.raw.alexa);
+        {
+            InputStream databaseInputStream = context.getResources().openRawResource(R.raw.brain);
             FileOutputStream outputStream = new FileOutputStream(hotword);
             copy(databaseInputStream, outputStream);
         }
