@@ -325,9 +325,13 @@ public class MainActivity extends Activity {
                 return true;
             }
             case R.id.train_item: {
-                Intent intent = new Intent(this, TrainActivity.class);
-                intent.putExtra(TrainActivity.NAME_INTENT, name);
-                startActivityForResult(intent, REQ_CREATE_TRAINING_DATA);
+                if (name != null) {
+                    Intent intent = new Intent(this, TrainActivity.class);
+                    intent.putExtra(TrainActivity.NAME_INTENT, name);
+                    startActivityForResult(intent, REQ_CREATE_TRAINING_DATA);
+                } else {
+                    Toast.makeText(this, R.string.cant_train_without_name, Toast.LENGTH_LONG).show();
+                }
                 return true;
             }
         }
@@ -483,27 +487,15 @@ public class MainActivity extends Activity {
         return toRequest.size() == 0;
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
-        for (int result : grantResults) {
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                try {
-                    requestPermissions();
-                    return;
-                } catch (PackageManager.NameNotFoundException e) {
-                    Log.e(TAG, "Package not found.", e);
-                }
-            }
-        }
-    }
-
-    class SpeechTimeout implements Runnable {
+    private class SpeechTimeout implements Runnable {
         private boolean timeoutCancelled = false;
         @Override
         public void run() {
             if (!timeoutCancelled) {
                 speechRecognizer.stopListening();
+            }
+            if (hotwordDetector != null) {
+                hotwordDetector.startListening();
             }
         }
 
@@ -512,7 +504,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    class SpeechListener implements RecognitionListener {
+    private class SpeechListener implements RecognitionListener {
         private SpeechTimeout timeout = null;
         public void onReadyForSpeech(Bundle params) {
             if (timeout != null) {
@@ -522,21 +514,13 @@ public class MainActivity extends Activity {
             new android.os.Handler().postDelayed(timeout, SPEECH_TIMEOUT);
         }
 
-        public void onBeginningOfSpeech() {
-            Log.d(TAG, "onBeginningOfSpeech");
-        }
+        public void onBeginningOfSpeech() { }
 
-        public void onRmsChanged(float rmsdB) {
-            Log.d(TAG, "onRmsChanged");
-        }
+        public void onRmsChanged(float rmsdB) { }
 
-        public void onBufferReceived(byte[] buffer) {
-            Log.d(TAG, "onBufferReceived");
-        }
+        public void onBufferReceived(byte[] buffer) { }
 
-        public void onEndOfSpeech() {
-            Log.i(TAG, "end of speech");
-        }
+        public void onEndOfSpeech() { }
 
         public void onError(int error) {
             Log.i(TAG, "error " + error);

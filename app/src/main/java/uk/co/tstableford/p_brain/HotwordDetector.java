@@ -27,6 +27,7 @@ public class HotwordDetector {
     private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
     private static final int ELEMENTS_TO_RECORD = 1024;
     private static final int BYTES_PER_ELEMENT = 2; // 2 bytes in 16bit format
+    private final Object API_LOCK = new Object();
     private SnowboyDetect detector;
     private AudioRecord recorder = null;
     private Thread recordingThread = null;
@@ -53,31 +54,33 @@ public class HotwordDetector {
     }
 
     public boolean setKeyword(String keyword) {
-        keyword = keyword.replaceAll(" ", "_").toLowerCase();
-        if (keyword.equals(currentKeyword)) {
+        synchronized (API_LOCK) {
+            keyword = keyword.replaceAll(" ", "_").toLowerCase();
+            if (keyword.equals(currentKeyword)) {
+                return true;
+            }
+            if (!isKeywordTrained(keyword)) {
+                return false;
+            }
+            File path = new File(Environment.getExternalStorageDirectory().getPath(), "pbrain");
+            boolean wasListening = isListening;
+            if (isListening) {
+                stopListening();
+            }
+
+            File common = new File(path, "common.res");
+            File hotword = new File(path, keyword + ".pmdl");
+            detector = new SnowboyDetect(common.getPath(), hotword.getPath());
+            detector.SetSensitivity("0.5");
+            detector.SetAudioGain(1);
+
+            if (wasListening) {
+                startListening();
+            }
+            currentKeyword = keyword;
+
             return true;
         }
-        if (!isKeywordTrained(keyword)) {
-            return false;
-        }
-        File path = new File(Environment.getExternalStorageDirectory().getPath(), "pbrain");
-        boolean wasListening = isListening;
-        if (isListening) {
-            stopListening();
-        }
-
-        File common = new File(path, "common.res");
-        File hotword = new File(path, keyword + ".pmdl");
-        detector = new SnowboyDetect(common.getPath(), hotword.getPath());
-        detector.SetSensitivity("0.5");
-        detector.SetAudioGain(1);
-
-        if (wasListening) {
-            startListening();
-        }
-        currentKeyword = keyword;
-
-        return true;
     }
 
     public HotwordDetector(Context context) throws IOException {
@@ -116,40 +119,46 @@ public class HotwordDetector {
     }
 
     public void startListening() {
-        if (!isListening) {
-            recorder.startRecording();
-            isListening = true;
-            if (!isRecording) {
-                isRecording = true;
-                recordingThread = new Thread(new Runnable() {
-                    public void run() {
-                        detectHotword();
-                    }
-                }, "AudioRecorder Thread");
-                recordingThread.start();
+        synchronized (API_LOCK) {
+            if (!isListening) {
+                recorder.startRecording();
+                isListening = true;
+                if (!isRecording) {
+                    isRecording = true;
+                    recordingThread = new Thread(new Runnable() {
+                        public void run() {
+                            detectHotword();
+                        }
+                    }, "AudioRecorder Thread");
+                    recordingThread.start();
+                }
             }
         }
     }
 
     public void stopListening() {
-        // stops the recording activity
-        if (null != recorder) {
-            recorder.stop();
+        synchronized (API_LOCK) {
+            // stops the recording activity
+            if (null != recorder) {
+                recorder.stop();
+            }
+            isListening = false;
         }
-        isListening = false;
     }
 
     public void destroy() {
-        if (null != recorder) {
-            isRecording = false;
-            stopListening();
-            recorder.release();
-            try {
-                recordingThread.join();
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Failed to join hotword thread.", e);
+        synchronized (API_LOCK) {
+            if (null != recorder) {
+                isRecording = false;
+                stopListening();
+                recorder.release();
+                try {
+                    recordingThread.join();
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Failed to join hotword thread.", e);
+                }
+                recordingThread = null;
             }
-            recordingThread = null;
         }
     }
 
