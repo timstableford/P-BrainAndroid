@@ -28,7 +28,6 @@ import android.widget.Toast;
 import android.speech.tts.TextToSpeech;
 import android.os.Build;
 import android.speech.RecognizerIntent;
-import android.content.ActivityNotFoundException;
 import android.annotation.TargetApi;
 
 import com.github.nkzawa.emitter.Emitter;
@@ -57,57 +56,7 @@ public class MainActivity extends Activity {
     private TextToSpeech tts;
     private String name;
     private SpeechRecognizer speechRecognizer;
-
-    private void sendMessage(final String messageText, final ChatMessage.UserType userType) {
-        if (messageText.trim().length() == 0) {
-            return;
-        }
-        final ChatMessage message = new ChatMessage();
-        message.setMessageText(messageText);
-        message.setUserType(userType);
-        chatMessages.add(message);
-
-        if (listAdapter != null) {
-            listAdapter.notifyDataSetChanged();
-        }
-        JSONObject object = new JSONObject();
-        if (mSocket == null) {
-            localMessage(getString(R.string.server_not_connected));
-        } else {
-            try {
-                object.put("text", messageText);
-                mSocket.emit("ask", object);
-            } catch (JSONException e) {
-                Log.e(TAG, "Failed to add message to JSON.", e);
-            }
-        }
-    }
-
-    private void responseMessage(String text, boolean silent) {
-        final ChatMessage message = new ChatMessage();
-        message.setMessageText(text);
-        message.setUserType(ChatMessage.UserType.OTHER);
-        chatMessages.add(message);
-
-        if (listAdapter != null) {
-            listAdapter.notifyDataSetChanged();
-        }
-
-        if (!silent) {
-            speak(text);
-        }
-    }
-
-    private void localMessage(final String messageText) {
-        final ChatMessage message = new ChatMessage();
-        message.setMessageText(messageText);
-        message.setUserType(ChatMessage.UserType.STATUS);
-        chatMessages.add(message);
-
-        if (listAdapter != null) {
-            listAdapter.notifyDataSetChanged();
-        }
-    }
+    private String connectedServer = null;
 
     @Override
     public void onDestroy() {
@@ -115,12 +64,7 @@ public class MainActivity extends Activity {
         if (hotwordDetector != null) {
             hotwordDetector.destroy();
         }
-        if (mSocket != null) {
-            mSocket.disconnect();
-            mSocket.close();
-            mSocket.off();
-            mSocket = null;
-        }
+        teardownSocket();
         if (tts != null) {
             tts.stop();
         }
@@ -148,19 +92,8 @@ public class MainActivity extends Activity {
             return;
         }
 
-        if (mSocket == null) {
-            try {
-                mSocket = IO.socket(server);
-                setupSocketListeners();
-            } catch (URISyntaxException e) {
-                Log.e(TAG, "Error connecting socket.io.", e);
-                localMessage(getString(R.string.server_not_connected));
-            }
-        }
+        setupSocket(server);
 
-        if (mSocket != null) {
-            mSocket.connect();
-        }
         if (hotwordDetector != null) {
             hotwordDetector.startListening();
         }
@@ -246,76 +179,6 @@ public class MainActivity extends Activity {
         speechRecognizer.setRecognitionListener(new SpeechListener());
     }
 
-    private void speak(String text) {
-        // Stop listening so it doesn't trigger itself.
-        if (hotwordDetector != null) {
-            hotwordDetector.stopListening();
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            speakLollipop(text);
-        } else {
-            speakKitkat(text);
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    @TargetApi(Build.VERSION_CODES.KITKAT)
-    private void speakKitkat(String text) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
-    }
-
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    private void speakLollipop(String text) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
-    }
-
-    private EditText.OnKeyListener keyListener = new View.OnKeyListener() {
-        @Override
-        public boolean onKey(View v, int keyCode, KeyEvent event) {
-            // If the event is a key-down event on the "enter" button
-            if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
-                    (keyCode == KeyEvent.KEYCODE_ENTER)) {
-                // Perform action on key press
-                EditText editText = (EditText) v;
-                if (v == chatEditText1) {
-                    sendMessage(editText.getText().toString(), ChatMessage.UserType.SELF);
-                }
-                chatEditText1.setText("");
-                return true;
-            }
-            return false;
-        }
-    };
-
-    private ImageView.OnClickListener clickListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            if (v == enterChatView1) {
-                sendMessage(chatEditText1.getText().toString(), ChatMessage.UserType.SELF);
-            }
-            chatEditText1.setText("");
-        }
-    };
-
-    private final TextWatcher watcher1 = new TextWatcher() {
-        @Override
-        public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
-        }
-
-        @Override
-        public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
-        }
-
-        @Override
-        public void afterTextChanged(Editable editable) {
-            if (editable.length() == 0) {
-                enterChatView1.setImageResource(R.drawable.ic_chat_send);
-            } else {
-                enterChatView1.setImageResource(R.drawable.ic_chat_send_active);
-            }
-        }
-    };
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -344,6 +207,37 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case REQ_CREATE_TRAINING_DATA: {
+                if (resultCode == RESULT_OK) {
+                    if (hotwordDetector.setKeyword(name)) {
+                        statusMessage(getString(R.string.keyword_update_success, name));
+                    } else {
+                        statusMessage(getString(R.string.keyword_update_failure, name));
+                    }
+                }
+            }
+
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void speak(String text) {
+        // Stop listening so it doesn't trigger itself.
+        if (hotwordDetector != null) {
+            hotwordDetector.stopListening();
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+        } else {
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+        }
+    }
+
     /**
      * Showing google speech input dialog
      */
@@ -360,24 +254,27 @@ public class MainActivity extends Activity {
         speechRecognizer.startListening(intent);
     }
 
-    /**
-     * Receiving speech input
-     */
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+    private void teardownSocket() {
+        if (mSocket != null) {
+            mSocket.disconnect();
+            mSocket.close();
+            mSocket.off();
+            mSocket = null;
+        }
+    }
 
-        switch (requestCode) {
-            case REQ_CREATE_TRAINING_DATA: {
-                if (resultCode == RESULT_OK) {
-                    if (hotwordDetector.setKeyword(name)) {
-                        localMessage(getString(R.string.keyword_update_success, name));
-                    } else {
-                        localMessage(getString(R.string.keyword_update_failure, name));
-                    }
-                }
+    private void setupSocket(String server) {
+        if (!connectedServer.equals(server) || mSocket == null) {
+            teardownSocket();
+            try {
+                mSocket = IO.socket(server);
+                setupSocketListeners();
+                connectedServer = server;
+                mSocket.connect();
+            } catch (URISyntaxException e) {
+                Log.e(TAG, "Error connecting socket.io.", e);
+                statusMessage(getString(R.string.server_not_connected));
             }
-
         }
     }
 
@@ -425,7 +322,7 @@ public class MainActivity extends Activity {
                             if (hotwordDetector != null) {
                                 if (hotwordDetector.setKeyword(name)) {
                                     Log.i(TAG, "Keyword set to " + name);
-                                    localMessage(getString(R.string.voice_prompt, name));
+                                    statusMessage(getString(R.string.voice_prompt, name));
                                 } else {
                                     Toast.makeText(MainActivity.this, getString(R.string.missing_training_data, name), Toast.LENGTH_LONG).show();
                                     Intent intent = new Intent(MainActivity.this, TrainActivity.class);
@@ -447,7 +344,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        localMessage(getString(R.string.connected));
+                        statusMessage(getString(R.string.connected));
                     }
                 });
             }
@@ -459,14 +356,14 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        localMessage(getString(R.string.disconnected));
+                        statusMessage(getString(R.string.disconnected));
                     }
                 });
             }
         });
     }
 
-    public boolean requestPermissions() throws PackageManager.NameNotFoundException {
+    private boolean requestPermissions() throws PackageManager.NameNotFoundException {
         PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_PERMISSIONS);
         ArrayList<String> toRequest = new ArrayList<>();
         if (info.requestedPermissions != null) {
@@ -542,7 +439,7 @@ public class MainActivity extends Activity {
             }
             ArrayList data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             if (data != null && data.size() > 0) {
-                sendMessage((String) data.get(0), ChatMessage.UserType.SELF);
+                sendMessage((String) data.get(0));
             }
         }
 
@@ -550,4 +447,94 @@ public class MainActivity extends Activity {
 
         public void onEvent(int eventType, Bundle params) { }
     }
+
+    private boolean addMessage(String text, ChatMessage.UserType type) {
+        if (text.trim().length() == 0) {
+            return false;
+        }
+        final ChatMessage message = new ChatMessage();
+        message.setMessageText(text);
+        message.setUserType(type);
+        chatMessages.add(message);
+
+        if (listAdapter != null) {
+            listAdapter.notifyDataSetChanged();
+        }
+        return true;
+    }
+
+    private void sendMessage(final String messageText) {
+        if (addMessage(messageText, ChatMessage.UserType.SELF)) {
+            JSONObject object = new JSONObject();
+            if (mSocket == null) {
+                statusMessage(getString(R.string.server_not_connected));
+            } else {
+                try {
+                    object.put("text", messageText);
+                    mSocket.emit("ask", object);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Failed to add message to JSON.", e);
+                }
+            }
+        }
+    }
+
+    private void responseMessage(String text, boolean silent) {
+        if (addMessage(text, ChatMessage.UserType.OTHER)) {
+            if (!silent) {
+                speak(text);
+            }
+        }
+    }
+
+    private void statusMessage(final String messageText) {
+        addMessage(messageText, ChatMessage.UserType.STATUS);
+    }
+
+    private EditText.OnKeyListener keyListener = new View.OnKeyListener() {
+        @Override
+        public boolean onKey(View v, int keyCode, KeyEvent event) {
+            // If the event is a key-down event on the "enter" button
+            if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER)) {
+                // Perform action on key press
+                EditText editText = (EditText) v;
+                if (v == chatEditText1) {
+                    sendMessage(editText.getText().toString());
+                }
+                chatEditText1.setText("");
+                return true;
+            }
+            return false;
+        }
+    };
+
+    private ImageView.OnClickListener clickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            if (v == enterChatView1) {
+                sendMessage(chatEditText1.getText().toString());
+            }
+            chatEditText1.setText("");
+        }
+    };
+
+    private final TextWatcher watcher1 = new TextWatcher() {
+        @Override
+        public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+        }
+
+        @Override
+        public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+        }
+
+        @Override
+        public void afterTextChanged(Editable editable) {
+            if (editable.length() == 0) {
+                enterChatView1.setImageResource(R.drawable.ic_chat_send);
+            } else {
+                enterChatView1.setImageResource(R.drawable.ic_chat_send_active);
+            }
+        }
+    };
 }
