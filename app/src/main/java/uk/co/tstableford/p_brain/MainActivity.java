@@ -8,6 +8,9 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.speech.RecognitionListener;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.UtteranceProgressListener;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.text.Editable;
@@ -42,9 +45,9 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final String TAG = "PBrainMain";
-    private static final int REQ_CODE_SPEECH_INPUT = 100;
     private static final int REQ_CREATE_TRAINING_DATA = 101;
     public static final int PERMISSION_RESULT = 102;
+    private static final int SPEECH_TIMEOUT = 20000; // 20 seconds in milliseconds.
     private EditText chatEditText1;
     private ArrayList<ChatMessage> chatMessages;
     private ImageView enterChatView1;
@@ -53,6 +56,7 @@ public class MainActivity extends Activity {
     private HotwordDetector hotwordDetector;
     private TextToSpeech tts;
     private String name;
+    private SpeechRecognizer speechRecognizer;
 
     private void sendMessage(final String messageText, final ChatMessage.UserType userType) {
         if (messageText.trim().length() == 0) {
@@ -206,7 +210,7 @@ public class MainActivity extends Activity {
         } catch (IOException e) {
             Log.e(TAG, "Failed to initialise hotword detector.", e);
         }
-        
+
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
@@ -214,15 +218,39 @@ public class MainActivity extends Activity {
                     int result = tts.setLanguage(Locale.US);
                     if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                         Log.e("TTS", "This Language is not supported");
+                    } else {
+                        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                            @Override
+                            public void onStart(String utteranceId) {
+                                if (hotwordDetector != null) {
+                                    hotwordDetector.stopListening();
+                                }
+                            }
+
+                            @Override
+                            public void onDone(String utteranceId) {
+                                if (hotwordDetector != null) {
+                                    hotwordDetector.startListening();
+                                }
+                            }
+
+                            @Override
+                            public void onError(String utteranceId) {
+
+                            }
+                        });
                     }
                 } else {
                     Log.e("TTS", "Initilization Failed!");
                 }
             }
         });
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new SpeechListener());
     }
-    
-    private void speak(String text){
+
+    private void speak(String text) {
         // Stop listening so it doesn't trigger itself.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             speakLollipop(text);
@@ -230,16 +258,16 @@ public class MainActivity extends Activity {
             speakKitkat(text);
         }
     }
-    
+
     @SuppressWarnings("deprecation")
     @TargetApi(Build.VERSION_CODES.KITKAT)
     private void speakKitkat(String text) {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
     }
-    
+
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void speakLollipop(String text) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);    
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
     }
 
     private EditText.OnKeyListener keyListener = new View.OnKeyListener() {
@@ -315,41 +343,28 @@ public class MainActivity extends Activity {
 
     /**
      * Showing google speech input dialog
-     * */
+     */
     private void promptSpeechInput() {
-        hotwordDetector.stopListening();
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
-                getString(R.string.speech_prompt));
-        try {
-            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
-        } catch (ActivityNotFoundException a) {
-            Toast.makeText(getApplicationContext(),
-                    getString(R.string.speech_not_supported),
-                    Toast.LENGTH_SHORT).show();
+        if (hotwordDetector != null) {
+            hotwordDetector.stopListening();
         }
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, "uk.co.tstableford.p_brain");
+
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        speechRecognizer.startListening(intent);
     }
 
     /**
      * Receiving speech input
-     * */
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         switch (requestCode) {
-            case REQ_CODE_SPEECH_INPUT: {
-                if (resultCode == RESULT_OK && null != data) {
-                    ArrayList<String> result = data
-                            .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-                    sendMessage(result.get(0), ChatMessage.UserType.SELF);
-                }
-                hotwordDetector.startListening();
-                break;
-            }
             case REQ_CREATE_TRAINING_DATA: {
                 if (resultCode == RESULT_OK) {
                     if (hotwordDetector.setKeyword(name)) {
@@ -407,6 +422,7 @@ public class MainActivity extends Activity {
                             if (hotwordDetector != null) {
                                 if (hotwordDetector.setKeyword(name)) {
                                     Log.i(TAG, "Keyword set to " + name);
+                                    localMessage(getString(R.string.voice_prompt, name));
                                 } else {
                                     Toast.makeText(MainActivity.this, getString(R.string.missing_training_data, name), Toast.LENGTH_LONG).show();
                                     Intent intent = new Intent(MainActivity.this, TrainActivity.class);
@@ -471,7 +487,7 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
-        for (int result: grantResults) {
+        for (int result : grantResults) {
             if (result != PackageManager.PERMISSION_GRANTED) {
                 try {
                     requestPermissions();
@@ -481,5 +497,55 @@ public class MainActivity extends Activity {
                 }
             }
         }
+    }
+
+    class SpeechListener implements RecognitionListener {
+        public void onReadyForSpeech(Bundle params) {
+            new android.os.Handler().postDelayed(
+                    new Runnable() {
+                        public void run() {
+                            speechRecognizer.stopListening();
+                        }
+                    },
+                    SPEECH_TIMEOUT);
+        }
+
+        public void onBeginningOfSpeech() {
+            Log.d(TAG, "onBeginningOfSpeech");
+        }
+
+        public void onRmsChanged(float rmsdB) {
+            Log.d(TAG, "onRmsChanged");
+        }
+
+        public void onBufferReceived(byte[] buffer) {
+            Log.d(TAG, "onBufferReceived");
+        }
+
+        public void onEndOfSpeech() {
+            Log.i(TAG, "end of speech");
+        }
+
+        public void onError(int error) {
+            Log.i(TAG, "error " + error);
+            if (hotwordDetector != null) {
+                hotwordDetector.startListening();
+            }
+        }
+
+        public void onResults(Bundle results) {
+            Log.i(TAG, "onResults " + results);
+            ArrayList data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            if (data != null && data.size() > 0) {
+                sendMessage((String) data.get(0), ChatMessage.UserType.SELF);
+            }
+            if (hotwordDetector != null) {
+                hotwordDetector.startListening();
+            }
+        }
+
+        public void onPartialResults(Bundle partialResults) { }
+
+        public void onEvent(int eventType, Bundle params) { }
     }
 }

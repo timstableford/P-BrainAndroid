@@ -21,4 +21,5 @@
     <string name="disconnected">Disconnected from host</string>
     <string name="connected">Connected to server</string>
     <string name="missing_training_data">Training data missing for %s</string>
+    <string name="voice_prompt">Say \'%s\' to start listening</string>
 </resources>
