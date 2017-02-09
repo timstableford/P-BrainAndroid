@@ -201,7 +201,6 @@ public class MainActivity extends Activity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            responseMessage("Yes?", false);
                             promptSpeechInput();
                         }
                     });
@@ -222,9 +221,6 @@ public class MainActivity extends Activity {
                         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                             @Override
                             public void onStart(String utteranceId) {
-                                if (hotwordDetector != null) {
-                                    hotwordDetector.stopListening();
-                                }
                             }
 
                             @Override
@@ -252,6 +248,9 @@ public class MainActivity extends Activity {
 
     private void speak(String text) {
         // Stop listening so it doesn't trigger itself.
+        if (hotwordDetector != null) {
+            hotwordDetector.stopListening();
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             speakLollipop(text);
         } else {
@@ -499,15 +498,28 @@ public class MainActivity extends Activity {
         }
     }
 
+    class SpeechTimeout implements Runnable {
+        private boolean timeoutCancelled = false;
+        @Override
+        public void run() {
+            if (!timeoutCancelled) {
+                speechRecognizer.stopListening();
+            }
+        }
+
+        public void cancel() {
+            timeoutCancelled = true;
+        }
+    }
+
     class SpeechListener implements RecognitionListener {
+        private SpeechTimeout timeout = null;
         public void onReadyForSpeech(Bundle params) {
-            new android.os.Handler().postDelayed(
-                    new Runnable() {
-                        public void run() {
-                            speechRecognizer.stopListening();
-                        }
-                    },
-                    SPEECH_TIMEOUT);
+            if (timeout != null) {
+                timeout.cancel();
+            }
+            timeout = new SpeechTimeout();
+            new android.os.Handler().postDelayed(timeout, SPEECH_TIMEOUT);
         }
 
         public void onBeginningOfSpeech() {
@@ -531,16 +543,22 @@ public class MainActivity extends Activity {
             if (hotwordDetector != null) {
                 hotwordDetector.startListening();
             }
+            if (timeout != null) {
+                timeout.cancel();
+            }
         }
 
         public void onResults(Bundle results) {
             Log.i(TAG, "onResults " + results);
+            if (hotwordDetector != null) {
+                hotwordDetector.startListening();
+            }
+            if (timeout != null) {
+                timeout.cancel();
+            }
             ArrayList data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             if (data != null && data.size() > 0) {
                 sendMessage((String) data.get(0), ChatMessage.UserType.SELF);
-            }
-            if (hotwordDetector != null) {
-                hotwordDetector.startListening();
             }
         }
 
