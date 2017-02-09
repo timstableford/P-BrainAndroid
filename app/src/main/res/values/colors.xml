@@ -2,5 +2,7 @@
 <resources>
     <color name="transparent">@android:color/transparent</color>
     <color name="blue">@android:color/holo_blue_light</color>
+    <color name="orange">#FFA500</color>
     <color name="grey">#d3d3d3</color>
+    <color name="red">#D52F2F</color>
 </resources>

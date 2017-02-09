@@ -9,6 +9,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -37,7 +38,8 @@ public class TrainActivity extends Activity {
     private static final String TAG = "TrainActivity";
     public static final String NAME_INTENT = "name";
     private static final String TOKEN = "7a5543f5ecd34419010c1233269d0d749d6db493";
-    private Button train1, train2, train3, train, reset;
+    private Button train, reset;
+    private ImageView record;
     private RecordWavMaster recorder = new RecordWavMaster();
     private ArrayList<File> samples = new ArrayList<>();
     private String name;
@@ -47,9 +49,7 @@ public class TrainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.train_activity);
 
-        train1 = (Button) findViewById(R.id.record1);
-        train2 = (Button) findViewById(R.id.record2);
-        train3 = (Button) findViewById(R.id.record3);
+        record = (ImageView) findViewById(R.id.record_button);
         train = (Button) findViewById(R.id.train);
         reset = (Button) findViewById(R.id.reset);
 
@@ -62,7 +62,7 @@ public class TrainActivity extends Activity {
         instructions.setText(
                 getString(R.string.record_instructions, name));
 
-        View.OnTouchListener listener = new View.OnTouchListener() {
+        record.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if(event.getAction() == MotionEvent.ACTION_DOWN) {
@@ -72,10 +72,7 @@ public class TrainActivity extends Activity {
                 }
                 return true;
             }
-        };
-        train1.setOnTouchListener(listener);
-        train2.setOnTouchListener(listener);
-        train3.setOnTouchListener(listener);
+        });
 
         reset.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -181,18 +178,12 @@ public class TrainActivity extends Activity {
     private void updateButtons() {
         train.setEnabled(false);
         reset.setEnabled(false);
-        train1.setEnabled(true);
-        train2.setEnabled(true);
-        train3.setEnabled(true);
+        record.setEnabled(true);
         if (samples.size() > 0) {
-            train1.setEnabled(false);
             reset.setEnabled(true);
         }
-        if (samples.size() > 1) {
-            train2.setEnabled(false);
-        }
         if (samples.size() > 2) {
-            train3.setEnabled(false);
+            record.setEnabled(false);
             train.setEnabled(true);
         }
     }

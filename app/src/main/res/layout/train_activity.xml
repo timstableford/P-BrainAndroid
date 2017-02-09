@@ -15,29 +15,16 @@
         android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large"
         android:textAlignment="center" />
 
-    <Button
-        android:id="@+id/record1"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/record_sample1"
-        android:layout_gravity="center"
-        android:layout_marginTop="10dp"/>
-
-    <Button
-        android:id="@+id/record2"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/record_sample2"
-        android:layout_gravity="center"
-        android:layout_marginTop="10dp"/>
-
-    <Button
-        android:id="@+id/record3"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/record_sample3"
-        android:layout_gravity="center"
-        android:layout_marginTop="10dp"/>
+    <ImageView
+            android:id="@+id/record_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/record_button"
+            android:adjustViewBounds="true"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp"
+            android:layout_marginLeft="60dp"
+            android:layout_marginRight="60dp"/>
 
     <Button
         android:id="@+id/train"
