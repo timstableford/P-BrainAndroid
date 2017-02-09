@@ -264,7 +264,10 @@ public class MainActivity extends Activity {
     }
 
     private void setupSocket(String server) {
-        if (!connectedServer.equals(server) || mSocket == null) {
+        if (server == null) {
+            return;
+        }
+        if (!server.equals(connectedServer) || mSocket == null) {
             teardownSocket();
             try {
                 mSocket = IO.socket(server);
