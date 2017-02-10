@@ -10,10 +10,12 @@
     <TextView
         android:text="@string/record_instructions"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
         android:id="@+id/record_name"
         android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large"
-        android:textAlignment="center" />
+        android:textAlignment="center"
+        android:gravity="center"/>
 
     <ImageView
             android:id="@+id/record_button"
@@ -25,6 +27,27 @@
             android:layout_marginBottom="20dp"
             android:layout_marginLeft="60dp"
             android:layout_marginRight="60dp"/>
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:orientation="horizontal" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:gravity="center">
+        <ImageView
+            android:id="@+id/tick1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/tick_cross"/>
+        <ImageView
+            android:id="@+id/tick2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp"
+            android:src="@drawable/tick_cross"/>
+        <ImageView
+            android:id="@+id/tick3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/tick_cross"/>
+    </LinearLayout>
 
     <Button
         android:id="@+id/train"

@@ -8,7 +8,10 @@
     <string name="pref_default_display_name">http://x.x.x.x:4567</string>
     <string name="speech_prompt">Yes?</string>
     <string name="speech_not_supported">Sorry! Your device doesn\'t support speech input.</string>
-    <string name="record_instructions">One at a time say \'%s\' while holding each button</string>
+    <string name="record_instructions">While holding the microphone say \'%s\'</string>
+    <string name="record_instructions1">And again…</string>
+    <string name="record_instructions2">One last time</string>
+    <string name="record_instructions3">Click \'Train\' to process the recordings or reset to start again</string>
     <string name="record_sample1">Hold To Record Sample 1</string>
     <string name="record_sample2">Hold To Record Sample 2</string>
     <string name="record_sample3">Hold To Record Sample 3</string>

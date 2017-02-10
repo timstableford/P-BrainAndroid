@@ -39,7 +39,8 @@ public class TrainActivity extends Activity {
     public static final String NAME_INTENT = "name";
     private static final String TOKEN = "7a5543f5ecd34419010c1233269d0d749d6db493";
     private Button train, reset;
-    private ImageView record;
+    private ImageView record, tick1, tick2, tick3;
+    private TextView instructions;
     private RecordWavMaster recorder = new RecordWavMaster();
     private ArrayList<File> samples = new ArrayList<>();
     private String name;
@@ -56,19 +57,27 @@ public class TrainActivity extends Activity {
         train.setEnabled(false);
         reset.setEnabled(false);
 
+        instructions = (TextView) findViewById(R.id.record_name);
+
         Intent intent = getIntent();
         TextView instructions = (TextView) findViewById(R.id.record_name);
         name = intent.getExtras().getString(NAME_INTENT);
         instructions.setText(
                 getString(R.string.record_instructions, name));
 
+        tick1 = (ImageView) findViewById(R.id.tick1);
+        tick2 = (ImageView) findViewById(R.id.tick2);
+        tick3 = (ImageView) findViewById(R.id.tick3);
+
         record.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if(event.getAction() == MotionEvent.ACTION_DOWN) {
                     recorder.recordWavStart();
+                    record.setPressed(true);
                 } else if (event.getAction() == MotionEvent.ACTION_UP) {
                     endRecording();
+                    record.setPressed(false);
                 }
                 return true;
             }
@@ -186,6 +195,24 @@ public class TrainActivity extends Activity {
             record.setEnabled(false);
             train.setEnabled(true);
         }
+        switch (samples.size()) {
+            case 0:
+                instructions.setText(getString(R.string.record_instructions, name));
+                break;
+            case 1:
+                instructions.setText(R.string.record_instructions1);
+                break;
+            case 2:
+                instructions.setText(R.string.record_instructions2);
+                break;
+            case 3: // Fallthrough.
+            default:
+                instructions.setText(R.string.record_instructions3);
+                break;
+        }
+        tick1.setPressed(samples.size() > 0);
+        tick2.setPressed(samples.size() > 1);
+        tick3.setPressed(samples.size() > 2);
     }
 
     private void endRecording() {
