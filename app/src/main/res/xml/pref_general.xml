@@ -11,4 +11,14 @@
         android:singleLine="true"
         android:title="@string/pref_title_display_name" />
 
+    <SwitchPreference
+        android:key="tts_enabled"
+        android:title="@string/tts_enabled"
+        android:defaultValue="true"/>
+
+    <SwitchPreference
+        android:key="hotword_enabled"
+        android:title="@string/hotword_enabled"
+        android:defaultValue="true"/>
+
 </PreferenceScreen>

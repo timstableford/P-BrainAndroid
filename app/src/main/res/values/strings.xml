@@ -26,4 +26,6 @@
     <string name="missing_training_data">Training data missing for %s</string>
     <string name="voice_prompt">Say \'%s\' to start listening</string>
     <string name="cant_train_without_name">Can\'t train without a name.</string>
+    <string name="tts_enabled">Text-to-speech Enabled</string>
+    <string name="hotword_enabled">Hotword Recognition Enabled</string>
 </resources>

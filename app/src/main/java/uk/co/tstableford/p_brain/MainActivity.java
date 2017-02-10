@@ -40,6 +40,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
@@ -47,6 +48,7 @@ public class MainActivity extends Activity {
     private static final int REQ_CREATE_TRAINING_DATA = 101;
     public static final int PERMISSION_RESULT = 102;
     private static final int SPEECH_TIMEOUT = 20000; // 20 seconds in milliseconds.
+    private SharedPreferences preferences;
     private EditText chatEditText1;
     private ArrayList<ChatMessage> chatMessages;
     private ImageView enterChatView1;
@@ -84,8 +86,7 @@ public class MainActivity extends Activity {
             return;
         }
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        final String server = prefs.getString("server_address", null);
+        final String server = preferences.getString("server_address", null);
         if (server == null) {
             Toast.makeText(this, "Enter server address.", Toast.LENGTH_SHORT).show();
             startActivity(new Intent(this, SettingsActivity.class));
@@ -93,6 +94,29 @@ public class MainActivity extends Activity {
         }
 
         setupSocket(server);
+
+        boolean hotwordEnabled = preferences.getBoolean("hotword_enabled", true);
+        if (hotwordEnabled && hotwordDetector == null) {
+            try {
+                hotwordDetector = new HotwordDetector(this);
+                hotwordDetector.setHotwordListener(new HotwordListener() {
+                    @Override
+                    public void onHotword() {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                promptSpeechInput();
+                            }
+                        });
+                    }
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Failed to initialise hotword detector.", e);
+            }
+        } else if (!hotwordEnabled && hotwordDetector != null) {
+            hotwordDetector.destroy();
+            hotwordDetector = null;
+        }
 
         if (hotwordDetector != null) {
             hotwordDetector.startListening();
@@ -112,6 +136,8 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        preferences = PreferenceManager.getDefaultSharedPreferences(this);
+
         chatEditText1 = (EditText) findViewById(R.id.chat_edit_text1);
         enterChatView1 = (ImageView) findViewById(R.id.enter_chat1);
 
@@ -126,49 +152,33 @@ public class MainActivity extends Activity {
 
         chatEditText1.addTextChangedListener(watcher1);
 
-        try {
-            hotwordDetector = new HotwordDetector(this);
-            hotwordDetector.setHotwordListener(new HotwordListener() {
-                @Override
-                public void onHotword() {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            promptSpeechInput();
-                        }
-                    });
-                }
-            });
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to initialise hotword detector.", e);
-        }
-
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
                 if (status == TextToSpeech.SUCCESS) {
-                    int result = tts.setLanguage(Locale.US);
+                    int result = tts.setLanguage(Locale.getDefault());
                     if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                         Log.e("TTS", "This Language is not supported");
-                    } else {
-                        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                            @Override
-                            public void onStart(String utteranceId) {
-                            }
-
-                            @Override
-                            public void onDone(String utteranceId) {
-                                if (hotwordDetector != null) {
-                                    hotwordDetector.startListening();
-                                }
-                            }
-
-                            @Override
-                            public void onError(String utteranceId) {
-
-                            }
-                        });
                     }
+                    tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override
+                        public void onStart(String utteranceId) {
+                        }
+
+                        @Override
+                        public void onDone(String utteranceId) {
+                            if (hotwordDetector != null) {
+                                hotwordDetector.startListening();
+                            }
+                        }
+
+                        @Override
+                        public void onError(String utteranceId) {
+                            if (hotwordDetector != null) {
+                                hotwordDetector.startListening();
+                            }
+                        }
+                    });
                 } else {
                     Log.e("TTS", "Initilization Failed!");
                 }
@@ -227,14 +237,19 @@ public class MainActivity extends Activity {
 
     @SuppressWarnings("deprecation")
     private void speak(String text) {
-        // Stop listening so it doesn't trigger itself.
-        if (hotwordDetector != null) {
-            hotwordDetector.stopListening();
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
-        } else {
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+        boolean ttsEnabled = preferences.getBoolean("tts_enabled", true);
+        if (ttsEnabled) {
+            // Stop listening so it doesn't trigger itself.
+            if (hotwordDetector != null) {
+                hotwordDetector.stopListening();
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "messageID");
+            } else {
+                HashMap<String, String> map = new HashMap<String, String>();
+                map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,"messageID");
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, map);
+            }
         }
     }
 
@@ -393,9 +408,9 @@ public class MainActivity extends Activity {
         public void run() {
             if (!timeoutCancelled) {
                 speechRecognizer.stopListening();
-            }
-            if (hotwordDetector != null) {
-                hotwordDetector.startListening();
+                if (hotwordDetector != null) {
+                    hotwordDetector.startListening();
+                }
             }
         }
 
@@ -434,11 +449,11 @@ public class MainActivity extends Activity {
 
         public void onResults(Bundle results) {
             Log.i(TAG, "onResults " + results);
-            if (hotwordDetector != null) {
-                hotwordDetector.startListening();
-            }
             if (timeout != null) {
                 timeout.cancel();
+            }
+            if (hotwordDetector != null) {
+                hotwordDetector.startListening();
             }
             ArrayList data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             if (data != null && data.size() > 0) {
