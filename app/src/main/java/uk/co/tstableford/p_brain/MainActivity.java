@@ -99,6 +99,9 @@ public class MainActivity extends Activity {
         if (hotwordEnabled && hotwordDetector == null) {
             try {
                 hotwordDetector = new HotwordDetector(this);
+                if (name != null) {
+                    hotwordDetector.setKeyword(name);
+                }
                 hotwordDetector.setHotwordListener(new HotwordListener() {
                     @Override
                     public void onHotword() {
