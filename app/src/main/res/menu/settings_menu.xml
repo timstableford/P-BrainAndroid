@@ -3,4 +3,6 @@
         android:title="@string/settings" />
     <item android:id="@+id/train_item"
         android:title="@string/train_voice" />
+    <item android:id="@+id/change_user"
+        android:title="@string/change_user" />
 </menu>

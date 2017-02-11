@@ -28,4 +28,5 @@
     <string name="cant_train_without_name">Can\'t train without a name.</string>
     <string name="tts_enabled">Text-to-speech Enabled</string>
     <string name="hotword_enabled">Hotword Recognition Enabled</string>
+    <string name="change_user">Change User</string>
 </resources>

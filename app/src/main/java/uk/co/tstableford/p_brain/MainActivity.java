@@ -245,6 +245,23 @@ public class MainActivity extends Activity {
                 }
                 return true;
             }
+            case R.id.change_user: {
+                final String server = preferences.getString("server_address", null);
+                LoginDialog login = new LoginDialog(MainActivity.this, server, new ConnectionManager.AuthListener() {
+                    @Override
+                    public void onSuccess(String token) {
+                        preferences.edit().putString("token", token).apply();
+                        finishSetup(token);
+                    }
+
+                    @Override
+                    public void onFailure(String reason, int status) {
+                        // Should never reach this point. Handled in login dialog.
+                    }
+                });
+                login.show();
+                return true;
+            }
         }
         return super.onOptionsItemSelected(item);
     }
