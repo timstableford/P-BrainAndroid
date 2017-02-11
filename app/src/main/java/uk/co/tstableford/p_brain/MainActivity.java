@@ -1,6 +1,7 @@
 package uk.co.tstableford.p_brain;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -21,6 +22,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -93,7 +95,40 @@ public class MainActivity extends Activity {
             return;
         }
 
-        setupSocket(server);
+        String token = preferences.getString("token", null);
+        ConnectionManager manager = new ConnectionManager(this, server);
+        manager.validateToken(token, new ConnectionManager.AuthListener() {
+            @Override
+            public void onSuccess(String token) {
+                finishSetup(token);
+            }
+
+            @Override
+            public void onFailure(String reason, int status) {
+                if (status == 0) {
+                    Toast.makeText(MainActivity.this, "Timeout when validating token.", Toast.LENGTH_LONG).show();
+                }
+                // Show login prompt.
+                LoginDialog login = new LoginDialog(MainActivity.this, server, new ConnectionManager.AuthListener() {
+                    @Override
+                    public void onSuccess(String token) {
+                        preferences.edit().putString("token", token).apply();
+                        finishSetup(token);
+                    }
+
+                    @Override
+                    public void onFailure(String reason, int status) {
+                        // Should never reach this point. Handled in login dialog.
+                    }
+                });
+                login.show();
+            }
+        });
+    }
+
+    private void finishSetup(String token) {
+        final String server = preferences.getString("server_address", null);
+        setupSocket(server, token);
 
         boolean hotwordEnabled = preferences.getBoolean("hotword_enabled", true);
         if (hotwordEnabled && hotwordDetector == null) {
@@ -281,14 +316,17 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setupSocket(String server) {
+    private void setupSocket(String server, String token) {
         if (server == null) {
             return;
         }
         if (!server.equals(connectedServer) || mSocket == null) {
             teardownSocket();
             try {
-                mSocket = IO.socket(server);
+                IO.Options opts = new IO.Options();
+                opts.forceNew = true;
+                opts.query = "token=" + token;
+                mSocket = IO.socket(server, opts);
                 setupSocketListeners();
                 connectedServer = server;
                 mSocket.connect();
