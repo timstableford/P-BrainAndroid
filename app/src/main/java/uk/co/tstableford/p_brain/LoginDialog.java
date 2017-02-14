@@ -15,7 +15,7 @@ public class LoginDialog extends Dialog {
                        final ConnectionManager.AuthListener listener) {
         super(activity);
         this.setContentView(R.layout.login_dialog);
-        this.setTitle("Login to " + server);
+        this.setTitle("Login");
         this.setCancelable(false);
 
         // Init button of login GUI
