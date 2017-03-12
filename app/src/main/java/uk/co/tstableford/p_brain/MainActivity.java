@@ -61,6 +61,8 @@ public class MainActivity extends Activity {
     private String name;
     private SpeechRecognizer speechRecognizer;
     private String connectedServer = null;
+    private ConnectionManager.AuthListener validationListener;
+    private ConnectionManager.AuthListener loginListener;
 
     @Override
     public void onDestroy() {
@@ -95,9 +97,23 @@ public class MainActivity extends Activity {
             return;
         }
 
-        String token = preferences.getString("token", null);
-        ConnectionManager manager = new ConnectionManager(this, server);
-        manager.validateToken(token, new ConnectionManager.AuthListener() {
+        final String token = preferences.getString("token", null);
+        final ConnectionManager manager = new ConnectionManager(this, server);
+
+        loginListener = new ConnectionManager.AuthListener() {
+            @Override
+            public void onSuccess(String token) {
+                preferences.edit().putString("token", token).apply();
+                finishSetup(token);
+            }
+
+            @Override
+            public void onFailure(String reason, int status) {
+                // Should never reach this point. Handled in login dialog.
+            }
+        };
+
+        validationListener = new ConnectionManager.AuthListener() {
             @Override
             public void onSuccess(String token) {
                 finishSetup(token);
@@ -105,25 +121,31 @@ public class MainActivity extends Activity {
 
             @Override
             public void onFailure(String reason, int status) {
-                if (status == 0) {
-                    Toast.makeText(MainActivity.this, "Timeout when validating token.", Toast.LENGTH_LONG).show();
-                }
-                // Show login prompt.
-                LoginDialog login = new LoginDialog(MainActivity.this, server, new ConnectionManager.AuthListener() {
-                    @Override
-                    public void onSuccess(String token) {
-                        preferences.edit().putString("token", token).apply();
-                        finishSetup(token);
-                    }
+                switch (status) {
+                    case 403:
+                        // Show login prompt.
+                        new LoginDialog(MainActivity.this, server, loginListener).show();
+                        Toast.makeText(MainActivity.this, reason, Toast.LENGTH_LONG).show();
+                        break;
+                    default:
+                        new RetryDialog(MainActivity.this, new RetryDialog.Response() {
+                            @Override
+                            public void onRetry() {
+                                manager.validateToken(token, validationListener);
+                            }
 
-                    @Override
-                    public void onFailure(String reason, int status) {
-                        // Should never reach this point. Handled in login dialog.
-                    }
-                });
-                login.show();
+                            @Override
+                            public void onCancel() {
+                                MainActivity.this.finish();
+                            }
+                        }).show();
+                        Toast.makeText(MainActivity.this, reason, Toast.LENGTH_LONG).show();
+                        break;
+                }
             }
-        });
+        };
+
+        manager.validateToken(token, validationListener);
     }
 
     private void finishSetup(String token) {
@@ -259,6 +281,8 @@ public class MainActivity extends Activity {
                         // Should never reach this point. Handled in login dialog.
                     }
                 });
+                login.setCancelable(true);
+                login.setCanceledOnTouchOutside(true);
                 login.show();
                 return true;
             }

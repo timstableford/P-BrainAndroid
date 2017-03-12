@@ -2,7 +2,6 @@ package uk.co.tstableford.p_brain;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.content.Context;
 import android.content.Intent;
 import android.view.View;
 import android.widget.Button;
@@ -17,6 +16,7 @@ public class LoginDialog extends Dialog {
         this.setContentView(R.layout.login_dialog);
         this.setTitle("Login");
         this.setCancelable(false);
+        this.setCanceledOnTouchOutside(false);
 
         // Init button of login GUI
         Button btnLogin = (Button) this.findViewById(R.id.btnLogin);
@@ -55,7 +55,6 @@ public class LoginDialog extends Dialog {
                 } else {
                     Toast.makeText(activity,
                             "Please enter Username and Password", Toast.LENGTH_LONG).show();
-
                 }
             }
         });
