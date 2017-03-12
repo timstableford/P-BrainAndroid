@@ -325,10 +325,12 @@ public class MainActivity extends Activity {
         switch (requestCode) {
             case REQ_CREATE_TRAINING_DATA: {
                 if (resultCode == RESULT_OK) {
-                    if (hotwordDetector.setKeyword(name)) {
-                        statusMessage(getString(R.string.keyword_update_success, name));
-                    } else {
-                        statusMessage(getString(R.string.keyword_update_failure, name));
+                    if (hotwordDetector != null) {
+                        if (hotwordDetector.setKeyword(name)) {
+                            statusMessage(getString(R.string.keyword_update_success, name));
+                        } else {
+                            statusMessage(getString(R.string.keyword_update_failure, name));
+                        }
                     }
                 }
             }
