@@ -63,6 +63,7 @@ public class MainActivity extends Activity {
     private String connectedServer = null;
     private ConnectionManager.AuthListener validationListener;
     private ConnectionManager.AuthListener loginListener;
+    private boolean promptForResponseOnSpeechEnd = false;
 
     @Override
     public void onDestroy() {
@@ -227,13 +228,24 @@ public class MainActivity extends Activity {
 
                         @Override
                         public void onDone(String utteranceId) {
-                            if (hotwordDetector != null) {
-                                hotwordDetector.startListening();
+                            if (promptForResponseOnSpeechEnd) {
+                                promptForResponseOnSpeechEnd = false;
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        promptSpeechInput();
+                                    }
+                                });
+                            } else {
+                                if (hotwordDetector != null) {
+                                    hotwordDetector.startListening();
+                                }
                             }
                         }
 
                         @Override
                         public void onError(String utteranceId) {
+                            Toast.makeText(MainActivity.this, "Speech error", Toast.LENGTH_LONG).show();
                             if (hotwordDetector != null) {
                                 hotwordDetector.startListening();
                             }
@@ -346,6 +358,7 @@ public class MainActivity extends Activity {
 
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         speechRecognizer.startListening(intent);
+        Toast.makeText(MainActivity.this, "Listening", Toast.LENGTH_LONG).show();
     }
 
     private void teardownSocket() {
@@ -401,6 +414,16 @@ public class MainActivity extends Activity {
                                     silent = true;
                                 }
                             }
+                            boolean canRespond = false;
+                            if (msgObject.has("canRespond")) {
+                                if (msgObject.getBoolean("canRespond")) {
+                                    canRespond = true;
+                                }
+                            }
+                            if (!silent && canRespond) {
+                                promptForResponseOnSpeechEnd = true;
+                            }
+
                             responseMessage(response, silent);
                         } catch (JSONException e) {
                             Log.e(TAG, "Error decoding JSON packet.", e);
