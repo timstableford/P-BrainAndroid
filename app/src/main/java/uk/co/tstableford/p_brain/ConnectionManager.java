@@ -112,7 +112,7 @@ public class ConnectionManager {
                 String status;
                 switch(statusCode) {
                     case 0:
-                        status = "Timeout";
+                        status = "Connection timeout";
                         break;
                     case 401:
                         status = "Not authorized";
