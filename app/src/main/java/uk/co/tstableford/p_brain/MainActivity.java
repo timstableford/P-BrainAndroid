@@ -524,11 +524,16 @@ public class MainActivity extends Activity {
         @Override
         public void run() {
             if (!timeoutCancelled) {
-                speechRecognizer.stopListening();
-                listeningDialog.dismiss();
-                if (hotwordDetector != null) {
-                    hotwordDetector.startListening();
-                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        speechRecognizer.stopListening();
+                        listeningDialog.dismiss();
+                        if (hotwordDetector != null) {
+                            hotwordDetector.startListening();
+                        }
+                    }
+                });
             }
         }
 
