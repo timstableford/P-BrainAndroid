@@ -139,7 +139,7 @@ public class MainActivity extends Activity {
 
                             @Override
                             public void onCancel() {
-                                MainActivity.this.finish();
+                                Toast.makeText(MainActivity.this, "Please restart the app or update connection settings.", Toast.LENGTH_LONG).show();
                             }
                         }).show();
                         Toast.makeText(MainActivity.this, reason, Toast.LENGTH_LONG).show();
