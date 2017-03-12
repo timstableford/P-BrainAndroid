@@ -235,7 +235,10 @@ public class MainActivity extends Activity {
                                 public void run() {
                                     if (promptForResponseOnSpeechEnd) {
                                         promptForResponseOnSpeechEnd = false;
-                                        promptSpeechInput();
+                                        boolean hotwordEnabled = preferences.getBoolean("hotword_enabled", true);
+                                        if (hotwordEnabled) {
+                                            promptSpeechInput();
+                                        }
                                     } else {
                                         if (hotwordDetector != null) {
                                             hotwordDetector.startListening();
