@@ -5,16 +5,16 @@
     android:background="#fff" android:layout_width="match_parent"
     android:paddingTop="10dp" android:paddingBottom="10dp">
     <EditText android:layout_height="wrap_content" android:id="@+id/txtUsername"
-        android:layout_width="match_parent" android:hint="Username">
+        android:layout_width="match_parent" android:hint="@string/username">
         <requestFocus />
     </EditText>
     <EditText android:layout_height="wrap_content"
         android:inputType="textPassword" android:id="@+id/txtPassword"
-        android:layout_width="match_parent" android:hint="Password"/>
+        android:layout_width="match_parent" android:hint="@string/password"/>
     <Button android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_weight="0.5"
-        android:id="@+id/btnLogin" android:text="Login"/>
+        android:id="@+id/btnLogin" android:text="@string/login"/>
     <Button android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_weight="0.5"
-        android:id="@+id/btnSettings" android:text="Connection Settings"/>
+        android:id="@+id/btnSettings" android:text="@string/connection_settings"/>
 </LinearLayout>

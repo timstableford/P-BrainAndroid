@@ -6,8 +6,8 @@
     android:paddingTop="10dp" android:paddingBottom="10dp">
     <Button android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_weight="0.5"
-        android:id="@+id/btnRetry" android:text="Retry"/>
+        android:id="@+id/btnRetry" android:text="@string/retry"/>
     <Button android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_weight="0.5"
-        android:id="@+id/btnCancel" android:text="Cancel"/>
+        android:id="@+id/btnCancel" android:text="@string/cancel"/>
 </LinearLayout>

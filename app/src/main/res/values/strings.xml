@@ -29,4 +29,10 @@
     <string name="tts_enabled">Text-to-speech Enabled</string>
     <string name="hotword_enabled">Hotword Recognition Enabled</string>
     <string name="change_user">Change User</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="login">Login</string>
+    <string name="connection_settings">Connection Settings</string>
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
 </resources>
