@@ -2,6 +2,7 @@ package uk.co.tstableford.p_brain;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -64,6 +65,7 @@ public class MainActivity extends Activity {
     private ConnectionManager.AuthListener validationListener;
     private ConnectionManager.AuthListener loginListener;
     private boolean promptForResponseOnSpeechEnd = false;
+    private ListeningDialog listeningDialog;
 
     @Override
     public void onDestroy() {
@@ -198,6 +200,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        listeningDialog = new ListeningDialog(this);
 
         chatEditText1 = (EditText) findViewById(R.id.chat_edit_text1);
         enterChatView1 = (ImageView) findViewById(R.id.enter_chat1);
@@ -223,32 +226,36 @@ public class MainActivity extends Activity {
                     }
                     tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                         @Override
-                        public void onStart(String utteranceId) {
-                        }
+                        public void onStart(String utteranceId) {}
 
                         @Override
                         public void onDone(String utteranceId) {
-                            if (promptForResponseOnSpeechEnd) {
-                                promptForResponseOnSpeechEnd = false;
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (promptForResponseOnSpeechEnd) {
+                                        promptForResponseOnSpeechEnd = false;
                                         promptSpeechInput();
+                                    } else {
+                                        if (hotwordDetector != null) {
+                                            hotwordDetector.startListening();
+                                        }
                                     }
-                                });
-                            } else {
-                                if (hotwordDetector != null) {
-                                    hotwordDetector.startListening();
                                 }
-                            }
+                            });
                         }
 
                         @Override
                         public void onError(String utteranceId) {
-                            Toast.makeText(MainActivity.this, "Speech error", Toast.LENGTH_LONG).show();
-                            if (hotwordDetector != null) {
-                                hotwordDetector.startListening();
-                            }
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(MainActivity.this, "Speech error", Toast.LENGTH_LONG).show();
+                                    if (hotwordDetector != null) {
+                                        hotwordDetector.startListening();
+                                    }
+                                }
+                            });
                         }
                     });
                 } else {
@@ -358,7 +365,7 @@ public class MainActivity extends Activity {
 
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         speechRecognizer.startListening(intent);
-        Toast.makeText(MainActivity.this, "Listening", Toast.LENGTH_LONG).show();
+        listeningDialog.show();
     }
 
     private void teardownSocket() {
@@ -513,6 +520,7 @@ public class MainActivity extends Activity {
         public void run() {
             if (!timeoutCancelled) {
                 speechRecognizer.stopListening();
+                listeningDialog.dismiss();
                 if (hotwordDetector != null) {
                     hotwordDetector.startListening();
                 }
@@ -543,6 +551,7 @@ public class MainActivity extends Activity {
         public void onEndOfSpeech() { }
 
         public void onError(int error) {
+            listeningDialog.dismiss();
             Log.i(TAG, "error " + error);
             if (hotwordDetector != null) {
                 hotwordDetector.startListening();
@@ -557,6 +566,7 @@ public class MainActivity extends Activity {
             if (timeout != null) {
                 timeout.cancel();
             }
+            listeningDialog.dismiss();
             if (hotwordDetector != null) {
                 hotwordDetector.startListening();
             }
