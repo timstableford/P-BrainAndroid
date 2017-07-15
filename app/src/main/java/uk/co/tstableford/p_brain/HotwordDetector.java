@@ -63,13 +63,18 @@ public class HotwordDetector {
                 return false;
             }
             File path = new File(Environment.getExternalStorageDirectory().getPath(), "pbrain");
+            File common = new File(path, "common.res");
+            File hotword = new File(path, keyword + ".pmdl");
+            if (!hotword.exists()) {
+                Log.e(TAG, "Hotword: " + keyword + " does not exist.");
+                return false;
+            }
+
             boolean wasListening = isListening;
             if (isListening) {
                 stopListening();
             }
 
-            File common = new File(path, "common.res");
-            File hotword = new File(path, keyword + ".pmdl");
             detector = new SnowboyDetect(common.getPath(), hotword.getPath());
             detector.SetSensitivity("0.5");
             detector.SetAudioGain(1);

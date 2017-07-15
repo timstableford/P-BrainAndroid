@@ -13,9 +13,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -29,10 +26,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 
-import cz.msebera.android.httpclient.Header;
-import cz.msebera.android.httpclient.entity.StringEntity;
-import cz.msebera.android.httpclient.message.BasicHeader;
-import cz.msebera.android.httpclient.protocol.HTTP;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class TrainActivity extends Activity {
     private static final String TAG = "TrainActivity";
@@ -44,6 +45,7 @@ public class TrainActivity extends Activity {
     private RecordWavMaster recorder = new RecordWavMaster();
     private ArrayList<File> samples = new ArrayList<>();
     private String name;
+    public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,28 +115,46 @@ public class TrainActivity extends Activity {
                     obj.put("microphone", "android microphone");
                     obj.put("language", "en");
 
-                    StringEntity entity = new StringEntity(obj.toString());
-                    entity.setContentType(new BasicHeader(HTTP.CONTENT_TYPE, "application/json"));
-                    AsyncHttpClient client = new AsyncHttpClient();
 
-                    client.post(TrainActivity.this, "https://snowboy.kitt.ai/api/v1/train/", entity, "application/json", new AsyncHttpResponseHandler() {
+                    OkHttpClient client = new OkHttpClient();
+                    RequestBody requestBody = RequestBody.create(JSON, obj.toString());
+                    Request request = new Request.Builder()
+                            .url("https://snowboy.kitt.ai/api/v1/train/")
+                            .method("POST", requestBody)
+                            .post(requestBody)
+                            .build();
+
+                    Toast.makeText(TrainActivity.this, "Uploading samples.", Toast.LENGTH_LONG).show();
+                    client.newCall(request).enqueue(new Callback() {
                         @Override
-                        public void onStart() {
-                            Toast.makeText(TrainActivity.this, "Uploading samples.", Toast.LENGTH_LONG).show();
+                        public void onFailure(Call call, IOException e) {
+                            Toast.makeText(TrainActivity.this, "REST Request Failed.", Toast.LENGTH_LONG).show();
+                            Log.e(TAG, "Failed to upload samples.", e);
                         }
 
                         @Override
-                        public void onSuccess(int statusCode, Header[] headers, byte[] response) {
-                            File output = new File(new File(Environment.getExternalStorageDirectory(), "pbrain"), name.replaceAll(" ", "_").toLowerCase() + ".pmdl");
-                            try {
-                                FileOutputStream stream = new FileOutputStream(output);
-                                stream.write(response);
-                                stream.close();
-                                Log.i(TAG, "Training successful. Written to: " + output.toString());
-                                Toast.makeText(TrainActivity.this, "Successfully trained.", Toast.LENGTH_SHORT).show();
+                        public void onResponse(Call call, final Response response) throws IOException {
+                            if (response.code() != 201) {
+                                Log.e(TAG, "Failed to upload samples.");
+                                Log.e(TAG, response.body().string());
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
+                                        Toast.makeText(TrainActivity.this, "REST Request Failed: " + response.code(), Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                                return;
+                            }
+                            File output = new File(new File(Environment.getExternalStorageDirectory(), "pbrain"), name.replaceAll(" ", "_").toLowerCase() + ".pmdl");
+                            try {
+                                FileOutputStream stream = new FileOutputStream(output);
+                                stream.write(response.body().bytes());
+                                stream.close();
+                                Log.i(TAG, "Training successful. Written to: " + output.toString());
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Toast.makeText(TrainActivity.this, "Successfully trained.", Toast.LENGTH_SHORT).show();
                                         Intent returnIntent = getIntent();
                                         setResult(RESULT_OK,returnIntent);
                                         finish();
@@ -144,18 +164,6 @@ public class TrainActivity extends Activity {
                                 Log.e(TAG, "Failed to write trained data.", e);
                                 Toast.makeText(TrainActivity.this, "Failed to write response.", Toast.LENGTH_LONG).show();
                             }
-
-                        }
-
-                        @Override
-                        public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
-                            Toast.makeText(TrainActivity.this, "REST Request Failed.", Toast.LENGTH_LONG).show();
-                            Log.e(TAG, new String(errorResponse));
-                        }
-
-                        @Override
-                        public void onRetry(int retryNo) {
-                            // called when request is retried
                         }
                     });
                 } catch (IOException | JSONException e) {

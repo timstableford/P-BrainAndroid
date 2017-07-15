@@ -125,7 +125,8 @@ public class MainActivity extends Activity {
             @Override
             public void onFailure(String reason, int status) {
                 switch (status) {
-                    case 403:
+                    case 403: // Fallthrough.
+                    case 401:
                         // Show login prompt.
                         new LoginDialog(MainActivity.this, server, loginListener).show();
                         Toast.makeText(MainActivity.this, reason, Toast.LENGTH_LONG).show();

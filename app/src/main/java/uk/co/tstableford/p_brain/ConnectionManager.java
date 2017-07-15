@@ -1,21 +1,31 @@
 package uk.co.tstableford.p_brain;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
-import android.content.Context;
+import android.support.annotation.Nullable;
+import android.util.Log;
 import android.widget.Toast;
-
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import cz.msebera.android.httpclient.Header;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.Authenticator;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Credentials;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.Route;
 
 public class ConnectionManager {
+    private static final String TAG = "ConnectionManager";
     private static final String LOGIN_API = "/api/login";
     private static final String VALIDATE_API = "/api/validate?token=";
-    private Context context;
+    private Activity activity;
     private String server;
     private boolean isConnecting = false;
 
@@ -24,59 +34,109 @@ public class ConnectionManager {
         void onFailure(String reason, int status);
     }
 
-    public ConnectionManager(Context context, String server) {
-        this.context = context;
+    public ConnectionManager(Activity activity, String server) {
+        this.activity = activity;
         this.server = server;
     }
 
-    public void login(String username, String password, final AuthListener listener) {
+    private int responseCount(Response response) {
+        int result = 1;
+        while ((response = response.priorResponse()) != null) {
+            result++;
+        }
+        return result;
+    }
+
+    private OkHttpClient buildClient(final String username, final String password) {
+        OkHttpClient.Builder builder = new OkHttpClient.Builder();
+        builder.authenticator(new Authenticator() {
+            @Nullable
+            @Override
+            public Request authenticate(Route route, Response response) throws IOException {
+                if (responseCount(response) >= 3) {
+                    return null; // If we've failed 3 times, give up. - in real life, never give up!!
+                }
+
+                String credential = Credentials.basic(username, password);
+                return response.request().newBuilder().header("Authorization", credential).build();
+            }
+        });
+        builder.connectTimeout(10, TimeUnit.SECONDS);
+        builder.writeTimeout(10, TimeUnit.SECONDS);
+        builder.readTimeout(30, TimeUnit.SECONDS);
+
+        return builder.build();
+    }
+
+    public void login(final String username, final String password, final AuthListener listener) {
         if (isConnecting) {
-            Toast.makeText(context, "Already connecting.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, "Already connecting.", Toast.LENGTH_SHORT).show();
             return;
         }
         isConnecting = true;
-        AsyncHttpClient client = new AsyncHttpClient();
-        client.setBasicAuth(username, password);
 
-        final ProgressDialog dialog = ProgressDialog.show(context, "Validating Token", "Please wait...");
+        final ProgressDialog dialog = ProgressDialog.show(activity, "Validating Token", "Please wait...");
         dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
-        client.get(context, server + LOGIN_API, new AsyncHttpResponseHandler() {
+
+        OkHttpClient client = buildClient(username, password);
+        Request request = new Request.Builder()
+                .url(server + LOGIN_API)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
             @Override
-            public void onStart() { }
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
+            public void onFailure(Call call, final IOException e) {
                 isConnecting = false;
-                dialog.dismiss();
-                String tokenJson = new String(response);
-                try {
-                    JSONObject obj = new JSONObject(tokenJson);
-                    listener.onSuccess(obj.getString("token"));
-                } catch (JSONException e) {
-                    listener.onFailure("Failed to parse response from server.", statusCode);
-                }
+                Log.e(TAG, "LOGIN request failed.", e);
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        dialog.dismiss();
+                        listener.onFailure(e.getMessage(), 0);
+                    }
+                });
             }
 
             @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
+            public void onResponse(Call call, final Response response) throws IOException {
                 isConnecting = false;
-                dialog.dismiss();
-                String status = Integer.toString(statusCode);
-                switch(statusCode) {
-                    case 0:
-                        status = "Timeout";
-                        break;
-                    case 401:
-                        status = "Not authorized";
-                        break;
-                    case 404:
-                        status = "API not found";
-                        break;
+                final String tokenJson = response.body().string();
+                if (response.code() != 200) {
+                    Log.e(TAG, tokenJson);
                 }
-                listener.onFailure(status, statusCode);
+
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        dialog.dismiss();
+                        String status = Integer.toString(response.code());
+                        switch (response.code()) {
+                            case 0:
+                                status = "Timeout";
+                                break;
+                            case 401:
+                                status = "Not authorized";
+                                break;
+                            case 404:
+                                status = "API not found";
+                                break;
+                            default:
+                                break;
+                        }
+                        if (response.code() == 200) {
+                            try {
+                                JSONObject obj = new JSONObject(tokenJson);
+                                listener.onSuccess(obj.getString("token"));
+                            } catch (JSONException e) {
+                                listener.onFailure("Failed to parse response from server.", response.code());
+                            }
+                        } else {
+                            listener.onFailure(status, response.code());
+                        }
+                    }
+                });
             }
-            @Override
-            public void onRetry(int retryNo) { }
         });
     }
 
@@ -86,50 +146,68 @@ public class ConnectionManager {
             return;
         }
         if (isConnecting) {
-            Toast.makeText(context, "Already connecting.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, "Already connecting.", Toast.LENGTH_SHORT).show();
             return;
         }
         isConnecting = true;
-        final ProgressDialog dialog = ProgressDialog.show(context, "Validating Token", "Please wait...");
+        final ProgressDialog dialog = ProgressDialog.show(activity, "Validating Token", "Please wait...");
         dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
 
-        AsyncHttpClient client = new AsyncHttpClient();
-        client.get(context, server + VALIDATE_API + token, new AsyncHttpResponseHandler() {
+        OkHttpClient client = new OkHttpClient();
+        Request request = new Request.Builder()
+                .url(server + VALIDATE_API + token)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
             @Override
-            public void onStart() { }
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
+            public void onFailure(Call call, final IOException e) {
                 isConnecting = false;
-                dialog.dismiss();
-                listener.onSuccess(token);
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        dialog.dismiss();
+                        listener.onFailure(e.getMessage(), 0);
+                    }
+                });
             }
 
             @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
+            public void onResponse(Call call, final Response response) throws IOException {
                 isConnecting = false;
-                dialog.dismiss();
-                String status;
-                switch(statusCode) {
-                    case 0:
-                        status = "Connection timeout";
-                        break;
-                    case 401:
-                        status = "Not authorized";
-                        break;
-                    case 404:
-                        status = "API not found";
-                        break;
-                    case 503:
-                        status = "Internal server error";
-                        break;
-                    default:
-                        status = Integer.toString(statusCode);
+                if (response.code() != 200) {
+                    Log.e(TAG, response.body().string());
                 }
-                listener.onFailure(status, statusCode);
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        dialog.dismiss();
+                        String status;
+                        switch (response.code()) {
+                            case 0:
+                                status = "Connection timeout";
+                                break;
+                            case 401:
+                                status = "Not authorized";
+                                break;
+                            case 404:
+                                status = "API not found";
+                                break;
+                            case 503:
+                                status = "Internal server error";
+                                break;
+                            default:
+                                status = Integer.toString(response.code());
+                                break;
+                        }
+                        if (response.code() == 200) {
+                            listener.onSuccess(token);
+                        } else {
+                            listener.onFailure(status, response.code());
+                        }
+                    }
+                });
             }
-            @Override
-            public void onRetry(int retryNo) { }
         });
     }
 }
