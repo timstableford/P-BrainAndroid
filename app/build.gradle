@@ -7,8 +7,8 @@ android {
         applicationId "uk.co.tstableford.p_brain"
         minSdkVersion 19
         targetSdkVersion 25
-        versionCode 7
-        versionName "2.5"
+        versionCode 8
+        versionName "2.6"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
