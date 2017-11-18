@@ -26,11 +26,6 @@ public class RecordWavMaster {
     private boolean mIsRecording = false;
     private String RECORD_WAV_PATH = Environment.getExternalStorageDirectory() + File.separator + "pbrain";
 
-    /* Initializing AudioRecording MIC */
-    public RecordWavMaster() {
-        initRecorder();
-    }
-
     /* Get Supported Sample Rate */
     public static int getValidSampleRates() {
         for (int rate : samplingRates) {
@@ -71,7 +66,7 @@ public class RecordWavMaster {
     }
 
     /* Initializing AudioRecording MIC */
-    private void initRecorder() {
+    public void initRecorder() {
         SAMPLE_RATE = getValidSampleRates();
         int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT);

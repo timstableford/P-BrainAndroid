@@ -48,6 +48,18 @@ public class TrainActivity extends Activity {
     public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        recorder.initRecorder();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        recorder.releaseRecord();
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.train_activity);

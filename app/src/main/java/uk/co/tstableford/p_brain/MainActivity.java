@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
     private ConnectionManager.AuthListener loginListener;
     private boolean promptForResponseOnSpeechEnd = false;
     private ListeningDialog listeningDialog;
+    private SpeechListener speechListener;
 
     @Override
     public void onDestroy() {
@@ -82,6 +83,9 @@ public class MainActivity extends Activity {
     @Override
     public void onResume() {
         super.onResume();
+        if (hotwordDetector != null) {
+            hotwordDetector.setDisabled(false);
+        }
 
         try {
             if (!requestPermissions()) {
@@ -189,10 +193,12 @@ public class MainActivity extends Activity {
 
     @Override
     public void onPause() {
-        super.onPause();
+        speechListener.cancel();
         if (hotwordDetector != null) {
+            hotwordDetector.setDisabled(true);
             hotwordDetector.stopListening();
         }
+        super.onPause();
     }
 
     @Override
@@ -269,7 +275,8 @@ public class MainActivity extends Activity {
         });
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-        speechRecognizer.setRecognitionListener(new SpeechListener());
+        speechListener = new SpeechListener();
+        speechRecognizer.setRecognitionListener(speechListener);
     }
 
     @Override
@@ -329,6 +336,7 @@ public class MainActivity extends Activity {
                     if (hotwordDetector != null) {
                         if (hotwordDetector.setKeyword(name)) {
                             statusMessage(getString(R.string.keyword_update_success, name));
+                            hotwordDetector.startListening();
                         } else {
                             statusMessage(getString(R.string.keyword_update_failure, name));
                         }
@@ -460,6 +468,8 @@ public class MainActivity extends Activity {
                                     Log.i(TAG, "Keyword set to " + name);
                                     statusMessage(getString(R.string.voice_prompt, name));
                                 } else {
+                                    hotwordDetector.stopListening();
+                                    speechListener.cancel();
                                     Toast.makeText(MainActivity.this, getString(R.string.missing_training_data, name), Toast.LENGTH_LONG).show();
                                     Intent intent = new Intent(MainActivity.this, TrainActivity.class);
                                     intent.putExtra(TrainActivity.NAME_INTENT, name);
@@ -551,6 +561,14 @@ public class MainActivity extends Activity {
             }
             timeout = new SpeechTimeout();
             new android.os.Handler().postDelayed(timeout, SPEECH_TIMEOUT);
+        }
+
+        public void cancel() {
+            if (timeout != null) {
+                timeout.cancel();
+                speechRecognizer.stopListening();
+                listeningDialog.dismiss();
+            }
         }
 
         public void onBeginningOfSpeech() { }

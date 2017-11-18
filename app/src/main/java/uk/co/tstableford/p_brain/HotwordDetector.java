@@ -35,6 +35,7 @@ public class HotwordDetector {
     private HotwordListener hotwordListener = null;
     private String currentKeyword = null;
     private boolean isListening = false;
+    private boolean disabled = false;
 
     public static void copy(InputStream in, OutputStream out) throws IOException {
         // Transfer bytes from in to out
@@ -117,15 +118,23 @@ public class HotwordDetector {
         detector.SetSensitivity("0.5");
         detector.SetAudioGain(1);
         Log.i(TAG, "Snowboy Setup");
+    }
 
-        recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                RECORDER_AUDIO_ENCODING, ELEMENTS_TO_RECORD * BYTES_PER_ELEMENT);
+    public void setDisabled(boolean disabled) {
+        synchronized (API_LOCK) {
+            this.disabled = disabled;
+        }
     }
 
     public void startListening() {
         synchronized (API_LOCK) {
+            if (this.disabled) {
+                return;
+            }
             if (!isListening) {
+                recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                        RECORDER_SAMPLERATE, RECORDER_CHANNELS,
+                        RECORDER_AUDIO_ENCODING, ELEMENTS_TO_RECORD * BYTES_PER_ELEMENT);
                 recorder.startRecording();
                 isListening = true;
                 if (!isRecording) {
@@ -144,10 +153,22 @@ public class HotwordDetector {
     public void stopListening() {
         synchronized (API_LOCK) {
             // stops the recording activity
-            if (null != recorder) {
-                recorder.stop();
-            }
             isListening = false;
+            isRecording = false;
+            if (recordingThread != null) {
+                try {
+                    recordingThread.join();
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Failed to join recordingThread", e);
+                }
+                recordingThread = null;
+            }
+            if (null != recorder) {
+                if (recorder.getState() == AudioRecord.STATE_INITIALIZED) {
+                    recorder.stop();
+                }
+                recorder.release();
+            }
         }
     }
 
