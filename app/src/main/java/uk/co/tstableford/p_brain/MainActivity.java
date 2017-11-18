@@ -1,8 +1,6 @@
 package uk.co.tstableford.p_brain;
 
 import android.app.Activity;
-import android.app.Dialog;
-import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,7 +22,6 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -32,7 +29,6 @@ import android.widget.Toast;
 import android.speech.tts.TextToSpeech;
 import android.os.Build;
 import android.speech.RecognizerIntent;
-import android.annotation.TargetApi;
 
 import com.github.nkzawa.emitter.Emitter;
 import com.github.nkzawa.socketio.client.IO;
@@ -436,11 +432,19 @@ public class MainActivity extends Activity {
                         JSONObject data = (JSONObject) args[0];
                         try {
                             JSONObject msgObject = data.getJSONObject("msg");
+                            // Response will be what is spoken.
                             String response = msgObject.getString("text");
+                            // Text will include the response and additional details such as URL.
+                            String text = response;
 
                             if (msgObject.has("url")) {
                                 String url = msgObject.getString("url");
-                                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                                text = text + " " + url;
+                                if (msgObject.has("url_autolaunch")) {
+                                    if (msgObject.getBoolean("url_autolaunch")) {
+                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                                    }
+                                }
                             }
 
                             boolean silent = false;
@@ -459,7 +463,7 @@ public class MainActivity extends Activity {
                                 promptForResponseOnSpeechEnd = true;
                             }
 
-                            responseMessage(response, silent);
+                            responseMessage(response, text, silent);
                         } catch (JSONException e) {
                             Log.e(TAG, "Error decoding JSON packet.", e);
                         }
@@ -562,7 +566,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        public void cancel() {
+        void cancel() {
             timeoutCancelled = true;
         }
     }
@@ -577,7 +581,7 @@ public class MainActivity extends Activity {
             new android.os.Handler().postDelayed(timeout, SPEECH_TIMEOUT);
         }
 
-        public void cancel() {
+        void cancel() {
             if (timeout != null) {
                 timeout.cancel();
                 speechRecognizer.stopListening();
@@ -658,10 +662,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void responseMessage(String text, boolean silent) {
-        if (addMessage(text, ChatMessage.UserType.OTHER)) {
+    private void responseMessage(String spokenText, String writtenText, boolean silent) {
+        if (addMessage(writtenText, ChatMessage.UserType.OTHER)) {
             if (!silent) {
-                speak(text);
+                speak(spokenText);
             }
         }
     }
