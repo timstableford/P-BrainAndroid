@@ -3,6 +3,7 @@ package uk.co.tstableford.p_brain;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -66,6 +67,7 @@ public class MainActivity extends Activity {
     private ConnectionManager.AuthListener loginListener;
     private boolean promptForResponseOnSpeechEnd = false;
     private ListeningDialog listeningDialog;
+    private SpeakingDialog speakingDialog;
     private SpeechListener speechListener;
 
     @Override
@@ -208,6 +210,24 @@ public class MainActivity extends Activity {
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
         listeningDialog = new ListeningDialog(this);
+        speakingDialog = new SpeakingDialog(this);
+        speakingDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                tts.stop();
+                if (promptForResponseOnSpeechEnd) {
+                    promptForResponseOnSpeechEnd = false;
+                    boolean hotwordEnabled = preferences.getBoolean("hotword_enabled", true);
+                    if (hotwordEnabled) {
+                        promptSpeechInput();
+                    }
+                } else {
+                    if (hotwordDetector != null) {
+                        hotwordDetector.startListening();
+                    }
+                }
+            }
+        });
 
         chatEditText1 = (EditText) findViewById(R.id.chat_edit_text1);
         enterChatView1 = (ImageView) findViewById(R.id.enter_chat1);
@@ -240,17 +260,7 @@ public class MainActivity extends Activity {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    if (promptForResponseOnSpeechEnd) {
-                                        promptForResponseOnSpeechEnd = false;
-                                        boolean hotwordEnabled = preferences.getBoolean("hotword_enabled", true);
-                                        if (hotwordEnabled) {
-                                            promptSpeechInput();
-                                        }
-                                    } else {
-                                        if (hotwordDetector != null) {
-                                            hotwordDetector.startListening();
-                                        }
-                                    }
+                                    speakingDialog.dismiss();
                                 }
                             });
                         }
@@ -264,6 +274,7 @@ public class MainActivity extends Activity {
                                     if (hotwordDetector != null) {
                                         hotwordDetector.startListening();
                                     }
+                                    speakingDialog.dismiss();
                                 }
                             });
                         }
@@ -351,6 +362,7 @@ public class MainActivity extends Activity {
     private void speak(String text) {
         boolean ttsEnabled = preferences.getBoolean("tts_enabled", true);
         if (ttsEnabled) {
+            speakingDialog.show();
             // Stop listening so it doesn't trigger itself.
             if (hotwordDetector != null) {
                 hotwordDetector.stopListening();
@@ -570,6 +582,7 @@ public class MainActivity extends Activity {
                 timeout.cancel();
                 speechRecognizer.stopListening();
                 listeningDialog.dismiss();
+                timeout = null;
             }
         }
 
@@ -583,12 +596,13 @@ public class MainActivity extends Activity {
 
         public void onError(int error) {
             listeningDialog.dismiss();
-            Log.i(TAG, "error " + error);
+            Log.i(TAG, "Speech recognition error " + error);
             if (hotwordDetector != null) {
                 hotwordDetector.startListening();
             }
             if (timeout != null) {
                 timeout.cancel();
+                timeout = null;
             }
         }
 
@@ -596,14 +610,15 @@ public class MainActivity extends Activity {
             Log.i(TAG, "onResults " + results);
             if (timeout != null) {
                 timeout.cancel();
-            }
-            listeningDialog.dismiss();
-            if (hotwordDetector != null) {
-                hotwordDetector.startListening();
-            }
-            ArrayList data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-            if (data != null && data.size() > 0) {
-                sendMessage((String) data.get(0));
+                timeout = null;
+                listeningDialog.dismiss();
+                if (hotwordDetector != null) {
+                    hotwordDetector.startListening();
+                }
+                ArrayList data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (data != null && data.size() > 0) {
+                    sendMessage((String) data.get(0));
+                }
             }
         }
 

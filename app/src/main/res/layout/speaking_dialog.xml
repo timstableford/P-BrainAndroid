@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_height="match_parent"
+    android:paddingLeft="10dp" android:paddingRight="10dp"
+    android:background="#fff" android:layout_width="match_parent"
+    android:paddingTop="10dp" android:paddingBottom="10dp">
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/speaker"
+        android:adjustViewBounds="true"
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="5dp"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        android:layout_gravity="center"/>
+
+    <Button
+        android:text="Dismiss"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/speaking_dialog_dismiss" />
+</LinearLayout>
