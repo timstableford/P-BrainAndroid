@@ -376,6 +376,8 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, "uk.co.tstableford.p_brain");
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+        intent.putExtra("android.speech.extra.DICTATION_MODE", true);
 
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         speechRecognizer.startListening(intent);
@@ -605,7 +607,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        public void onPartialResults(Bundle partialResults) { }
+        public void onPartialResults(Bundle results) { }
 
         public void onEvent(int eventType, Bundle params) { }
     }
