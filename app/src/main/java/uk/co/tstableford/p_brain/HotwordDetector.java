@@ -179,7 +179,9 @@ public class HotwordDetector {
                 stopListening();
                 recorder.release();
                 try {
-                    recordingThread.join();
+                    if (recordingThread != null) {
+                        recordingThread.join();
+                    }
                 } catch (InterruptedException e) {
                     Log.e(TAG, "Failed to join hotword thread.", e);
                 }

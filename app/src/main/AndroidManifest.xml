@@ -26,6 +26,8 @@
         <activity
             android:name=".TrainActivity"
             android:label="@string/train_voice"/>
+
+        <service android:name=".service.LocalService" />
     </application>
 
 </manifest>

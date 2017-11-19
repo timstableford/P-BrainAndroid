@@ -43,6 +43,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
+import uk.co.tstableford.p_brain.service.LocalService;
+
 public class MainActivity extends Activity {
     private static final String TAG = "PBrainMain";
     private static final int REQ_CREATE_TRAINING_DATA = 101;
@@ -68,14 +70,17 @@ public class MainActivity extends Activity {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
         if (hotwordDetector != null) {
             hotwordDetector.destroy();
         }
         teardownSocket();
         if (tts != null) {
             tts.stop();
+            tts.shutdown();
         }
+        Intent intent = new Intent(this, LocalService.class);
+        stopService(intent);
+        super.onDestroy();
     }
 
     @Override
@@ -202,6 +207,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Intent intent = new Intent(this, LocalService.class);
+        startService(intent);
         setContentView(R.layout.activity_main);
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
