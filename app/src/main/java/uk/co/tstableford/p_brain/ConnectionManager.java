@@ -28,6 +28,7 @@ public class ConnectionManager {
     private Activity activity;
     private String server;
     private boolean isConnecting = false;
+    private ProgressDialog progressDialog = null;
 
     public interface AuthListener {
         void onSuccess(String token);
@@ -37,6 +38,10 @@ public class ConnectionManager {
     public ConnectionManager(Activity activity, String server) {
         this.activity = activity;
         this.server = server;
+    }
+
+    public ConnectionManager(String server) {
+        this(null, server);
     }
 
     private int responseCount(Response response) {
@@ -75,9 +80,14 @@ public class ConnectionManager {
         }
         isConnecting = true;
 
-        final ProgressDialog dialog = ProgressDialog.show(activity, "Validating Token", "Please wait...");
-        dialog.setCancelable(false);
-        dialog.setCanceledOnTouchOutside(false);
+        if (activity != null) {
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
+            progressDialog = ProgressDialog.show(activity, "Validating Token", "Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.setCanceledOnTouchOutside(false);
+        }
 
         OkHttpClient client = buildClient(username, password);
         Request request = new Request.Builder()
@@ -92,7 +102,8 @@ public class ConnectionManager {
                 activity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        dialog.dismiss();
+                        progressDialog.dismiss();
+                        progressDialog = null;
                         listener.onFailure(e.getMessage(), 0);
                     }
                 });
@@ -109,7 +120,8 @@ public class ConnectionManager {
                 activity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        dialog.dismiss();
+                        progressDialog.dismiss();
+                        progressDialog = null;
                         String status = Integer.toString(response.code());
                         switch (response.code()) {
                             case 0:
@@ -146,13 +158,20 @@ public class ConnectionManager {
             return;
         }
         if (isConnecting) {
-            Toast.makeText(activity, "Already connecting.", Toast.LENGTH_SHORT).show();
+            if (activity != null) {
+                Toast.makeText(activity, "Already connecting.", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
         isConnecting = true;
-        final ProgressDialog dialog = ProgressDialog.show(activity, "Validating Token", "Please wait...");
-        dialog.setCancelable(false);
-        dialog.setCanceledOnTouchOutside(false);
+        if (activity != null) {
+            if (progressDialog != null) {
+                progressDialog.dismiss();
+            }
+            progressDialog = ProgressDialog.show(activity, "Validating Token", "Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.setCanceledOnTouchOutside(false);
+        }
 
         OkHttpClient client = new OkHttpClient();
         Request request = new Request.Builder()
@@ -163,13 +182,18 @@ public class ConnectionManager {
             @Override
             public void onFailure(Call call, final IOException e) {
                 isConnecting = false;
-                activity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        dialog.dismiss();
-                        listener.onFailure(e.getMessage(), 0);
-                    }
-                });
+                if (activity != null) {
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressDialog.dismiss();
+                            progressDialog = null;
+                            listener.onFailure(e.getMessage(), 0);
+                        }
+                    });
+                } else {
+                    listener.onFailure(e.getMessage(), 0);
+                }
             }
 
             @Override
@@ -178,35 +202,39 @@ public class ConnectionManager {
                 if (response.code() != 200) {
                     Log.e(TAG, response.body().string());
                 }
-                activity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        dialog.dismiss();
-                        String status;
-                        switch (response.code()) {
-                            case 0:
-                                status = "Connection timeout";
-                                break;
-                            case 401:
-                                status = "Not authorized";
-                                break;
-                            case 404:
-                                status = "API not found";
-                                break;
-                            case 503:
-                                status = "Internal server error";
-                                break;
-                            default:
-                                status = Integer.toString(response.code());
-                                break;
+                String status;
+                switch (response.code()) {
+                    case 0:
+                        status = "Connection timeout";
+                        break;
+                    case 401:
+                        status = "Not authorized";
+                        break;
+                    case 404:
+                        status = "API not found";
+                        break;
+                    case 503:
+                        status = "Internal server error";
+                        break;
+                    default:
+                        status = Integer.toString(response.code());
+                        break;
+                }
+                if (activity != null) {
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressDialog.dismiss();
+                            progressDialog = null;
                         }
-                        if (response.code() == 200) {
-                            listener.onSuccess(token);
-                        } else {
-                            listener.onFailure(status, response.code());
-                        }
+                    });
+                } else {
+                    if (response.code() == 200) {
+                        listener.onSuccess(token);
+                    } else {
+                        listener.onFailure(status, response.code());
                     }
-                });
+                }
             }
         });
     }

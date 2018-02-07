@@ -38,9 +38,11 @@ public class LocalService extends Service {
     private VerbalUI verbalUi;
     private SharedPreferences preferences;
     private ConnectionManager.AuthListener validationListener;
+    private String connectedServer = null;
     // Binder given to clients
     private final IBinder mBinder = new LocalBinder();
     private Handler handler;
+    private Socket socket;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -56,8 +58,10 @@ public class LocalService extends Service {
         if (token == null) {
             return false;
         }
-        final ConnectionManager manager = new ConnectionManager(this, server);
+        final ConnectionManager manager = new ConnectionManager(server);
         manager.validateToken(token, validationListener);
+
+        return true;
     }
 
 
@@ -110,10 +114,10 @@ public class LocalService extends Service {
                 socket = IO.socket(server, opts);
                 setupSocketListeners();
                 connectedServer = server;
-                mSocket.connect();
+                socket.connect();
             } catch (URISyntaxException e) {
                 Log.e(TAG, "Error connecting socket.io.", e);
-                statusMessage(getString(R.string.server_not_connected));
+                connectedServer = null;
             }
         }
     }
