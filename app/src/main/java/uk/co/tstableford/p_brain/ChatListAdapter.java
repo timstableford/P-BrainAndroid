@@ -5,7 +5,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.nostra13.universalimageloader.core.ImageLoader;
 
 import java.util.ArrayList;
 
@@ -56,10 +59,16 @@ public class ChatListAdapter extends BaseAdapter {
                 v = LayoutInflater.from(context).inflate(R.layout.chat_item_incoming, null, false);
                 holder = new ViewHolder();
                 holder.messageTextView = (TextView) v.findViewById(R.id.message_text_incoming);
+                holder.imageView = (ImageView) v.findViewById(R.id.message_incoming_icon);
                 v.setTag(holder);
             } else {
                 v = convertView;
                 holder = (ViewHolder) v.getTag();
+            }
+            if (message.getIcon() != null) {
+                ImageLoader imageLoader = ImageLoader.getInstance();
+                imageLoader.displayImage(message.getIcon(), holder.imageView);
+                holder.imageView.setVisibility(View.VISIBLE);
             }
             holder.messageTextView.setText(message.getMessageText());
         } else if (message.getUserType() == ChatMessage.UserType.STATUS) {
@@ -91,5 +100,6 @@ public class ChatListAdapter extends BaseAdapter {
 
     private class ViewHolder {
         public TextView messageTextView;
+        public ImageView imageView;
     }
 }

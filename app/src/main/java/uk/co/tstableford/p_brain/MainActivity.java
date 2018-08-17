@@ -30,6 +30,9 @@ import android.speech.tts.TextToSpeech;
 import android.os.Build;
 import android.speech.RecognizerIntent;
 
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -202,6 +205,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(this).build();
+        ImageLoader.getInstance().init(config);
+
         setContentView(R.layout.activity_main);
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -447,6 +454,11 @@ public class MainActivity extends Activity {
                                 }
                             }
 
+                            String icon = null;
+                            if (msgObject.has("image")) {
+                                icon = msgObject.getString("image");
+                            }
+
                             boolean silent = false;
                             if (msgObject.has("silent")) {
                                 if (msgObject.getBoolean("silent")) {
@@ -463,7 +475,7 @@ public class MainActivity extends Activity {
                                 promptForResponseOnSpeechEnd = true;
                             }
 
-                            responseMessage(response, text, silent);
+                            responseMessage(response, text, silent, icon);
                         } catch (JSONException e) {
                             Log.e(TAG, "Error decoding JSON packet.", e);
                         }
@@ -631,19 +643,26 @@ public class MainActivity extends Activity {
         public void onEvent(int eventType, Bundle params) { }
     }
 
-    private boolean addMessage(String text, ChatMessage.UserType type) {
+    private boolean addMessage(String text, ChatMessage.UserType type, String icon) {
         if (text.trim().length() == 0) {
             return false;
         }
         final ChatMessage message = new ChatMessage();
         message.setMessageText(text);
         message.setUserType(type);
+        if (icon != null) {
+            message.setIcon(icon);
+        }
         chatMessages.add(message);
 
         if (listAdapter != null) {
             listAdapter.notifyDataSetChanged();
         }
         return true;
+    }
+
+    private boolean addMessage(String text, ChatMessage.UserType type) {
+        return this.addMessage(text, type, null);
     }
 
     private void sendMessage(final String messageText) {
@@ -662,8 +681,8 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void responseMessage(String spokenText, String writtenText, boolean silent) {
-        if (addMessage(writtenText, ChatMessage.UserType.OTHER)) {
+    private void responseMessage(String spokenText, String writtenText, boolean silent, String icon) {
+        if (addMessage(writtenText, ChatMessage.UserType.OTHER, icon)) {
             if (!silent) {
                 speak(spokenText);
             }

@@ -9,15 +9,29 @@
     <uk.co.tstableford.p_brain.ChatLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:background="@drawable/incoming_bubble"
         android:layout_alignParentStart="true">
+
+        <ImageView
+            android:id="@+id/message_incoming_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:layout_gravity="center"
+            android:layout_marginBottom="5dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginTop="5dp"
+            android:adjustViewBounds="true"
+            android:paddingLeft="30dp"
+            android:scaleType="fitCenter"
+            android:visibility="invisible" />
 
         <TextView
             android:id="@+id/message_text_incoming"
             style="@style/chat_text_message_style"
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"
-            android:paddingLeft="30dp"
             android:autoLink="web"
             android:textAlignment="viewStart" />
     </uk.co.tstableford.p_brain.ChatLayout>

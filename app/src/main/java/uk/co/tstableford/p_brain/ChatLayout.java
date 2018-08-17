@@ -4,8 +4,9 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-public class ChatLayout extends RelativeLayout {
+public class ChatLayout extends LinearLayout {
     public ChatLayout(Context context) {
         super(context);
     }
